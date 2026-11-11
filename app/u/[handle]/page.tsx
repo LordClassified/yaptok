@@ -1,0 +1,50 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { DbNotConnected } from "@/components/auth/AuthCard";
+import { ProfileView } from "@/components/profile/ProfileView";
+import { profileState } from "@/lib/feed/server";
+import { siteConfig } from "@/site.config";
+
+export async function generateMetadata({ params }: PageProps<"/u/[handle]">): Promise<Metadata> {
+  const state = await profileState((await params).handle);
+  if (state.kind !== "found") return { title: siteConfig.siteName };
+  return {
+    title: `${state.profile.displayName} (@${state.profile.username}) | ${siteConfig.siteName}`,
+    description: state.profile.bio || `Clips by @${state.profile.username} on ${siteConfig.siteName}.`,
+  };
+}
+
+async function ProfileGate({ params }: { params: PageProps<"/u/[handle]">["params"] }) {
+  const state = await profileState((await params).handle);
+  if (state.kind === "missing") notFound();
+  if (state.kind === "no-db") {
+    return (
+      <div className="mx-auto max-w-[480px] px-4 py-10">
+        <DbNotConnected />
+      </div>
+    );
+  }
+  if (state.kind === "off") {
+    return <p className="px-4 py-16 text-center text-[14px] text-text-2">Creator pages are switched off right now.</p>;
+  }
+  return (
+    <ProfileView
+      profile={state.profile}
+      clips={state.clips}
+      following={state.following}
+      mine={state.mine}
+      mediaBase={state.mediaBase}
+      signedIn={state.signedIn}
+    />
+  );
+}
+
+/** A creator's page, at /@username (see the rewrite in next.config.ts). */
+export default function ProfilePage({ params }: PageProps<"/u/[handle]">) {
+  return (
+    <Suspense fallback={<div className="mx-auto mt-10 h-24 w-24 rounded-full bg-skeleton" aria-hidden />}>
+      <ProfileGate params={params} />
+    </Suspense>
+  );
+}

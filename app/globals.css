@@ -1,0 +1,335 @@
+@import "tailwindcss";
+
+/*
+ * The YapTok look. Dark is the default (video first); light is switched on by
+ * removing the "dark" class from <html>, which the inline script in
+ * app/layout.tsx sets before first paint. Brand colors come from lib/brand.ts.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --page: #faf9fc;
+  --surface: #ffffff;
+  --text: #16121f;
+  --text-2: #5b5567;
+  --text-3: #6f697c;
+  --brand: #7c3aed;
+  --brand-strong: #6d28d9;
+  --link: #6d28d9;
+  --mark: #7c3aed;
+  --logo-word: #7c3aed;
+  --accent: #d97706;
+  --divider: #e7e3ee;
+  --hover: #f1eef6;
+  --active: #e7e3ee;
+  --icon: #5b5567;
+  --input-border: #cfc9da;
+  --input-bg: #ffffff;
+  --skeleton: #ebe7f1;
+  --menu-shadow: 0 8px 32px rgba(22, 18, 31, 0.14), 0 0 0 1px rgba(22, 18, 31, 0.08);
+  --focus: #7c3aed;
+  --error: #c62828;
+  --ok: #15803d;
+  --warn: #b45309;
+  --progress: #7c3aed;
+  --progress-track: #e7e3ee;
+  color-scheme: light;
+}
+
+:root.dark {
+  --page: #0e0b14;
+  --surface: #17131f;
+  --text: #f5f3fa;
+  --text-2: #b3adc2;
+  --text-3: #8f89a0;
+  --brand: #8b5cf6;
+  --brand-strong: #7c3aed;
+  --link: #a78bfa;
+  --mark: #8b5cf6;
+  --logo-word: #a78bfa;
+  --accent: #f59e0b;
+  --divider: #2a2436;
+  --hover: #221c2e;
+  --active: #2a2436;
+  --icon: #b3adc2;
+  --input-border: #3a3349;
+  --input-bg: #120e1a;
+  --skeleton: #221c2e;
+  --menu-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --focus: #a78bfa;
+  --error: #ff6b61;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --progress: #8b5cf6;
+  --progress-track: #2a2436;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-brand: var(--brand);
+  --color-link: var(--link);
+  --color-accent: var(--accent);
+  --color-divider: var(--divider);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-icon: var(--icon);
+  --color-skeleton: var(--skeleton);
+  --color-error: var(--error);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --font-sans: var(--font-roboto), Roboto, Arial, sans-serif;
+  /* From this width the side rail replaces the phone's bottom bar. */
+  --breakpoint-desk: 800px;
+}
+
+@layer base {
+  html {
+    background: var(--page);
+  }
+
+  body {
+    background: var(--page);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .link {
+    color: var(--link);
+  }
+
+  .link:hover {
+    text-decoration: underline;
+  }
+}
+
+@layer components {
+  .field {
+    width: 100%;
+    height: 48px;
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    background: var(--input-bg);
+    color: var(--text);
+    padding: 0 14px;
+    font-size: 16px;
+    outline: none;
+  }
+
+  .field:focus {
+    border-color: var(--focus);
+    box-shadow: inset 0 0 0 1px var(--focus);
+  }
+
+  .field:disabled {
+    opacity: 0.6;
+  }
+
+  textarea.field {
+    height: auto;
+    padding: 12px 14px;
+    resize: vertical;
+  }
+
+  select.field {
+    appearance: auto;
+  }
+
+  /* The main action on a page: a violet pill. */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: var(--brand-strong);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.08);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    filter: none;
+  }
+
+  /* A quiet second action. */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid var(--divider);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .btn-ghost:hover {
+    background: var(--hover);
+  }
+
+  .btn-ghost:disabled {
+    opacity: 0.5;
+  }
+
+  /* A destructive action (remove, ban). */
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid var(--error);
+    color: var(--error);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .btn-danger:hover {
+    background: color-mix(in srgb, var(--error) 12%, transparent);
+  }
+
+  .btn-danger:disabled {
+    opacity: 0.5;
+  }
+
+  .btn-sm {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 14px;
+  }
+
+  /* A small status label, like "removed" or "test". */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--hover);
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .pill-ok {
+    background: color-mix(in srgb, var(--ok) 16%, transparent);
+    color: var(--ok);
+  }
+
+  .pill-warn {
+    background: color-mix(in srgb, var(--warn) 18%, transparent);
+    color: var(--warn);
+  }
+
+  .pill-bad {
+    background: color-mix(in srgb, var(--error) 16%, transparent);
+    color: var(--error);
+  }
+}
+
+/*
+ * The feed. One clip fills the stage; the stage is the viewport minus the
+ * phone's bottom bar. On a desk the clip is a centered 9:16 column.
+ */
+.feed-stage {
+  position: relative;
+  height: calc(100dvh - var(--bottom-bar, 0px) - var(--banner, 0px));
+  overflow: hidden;
+  background: #000;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+}
+
+.feed-track {
+  height: 100%;
+  transition: transform 320ms cubic-bezier(0.22, 0.8, 0.3, 1);
+  will-change: transform;
+}
+
+.feed-track[data-dragging="true"] {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feed-track {
+    transition: none;
+  }
+}
+
+/* Text over video stays readable on any clip. */
+.over-video {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Keyboard focus is always visible; fields keep their own border. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.field:focus-visible {
+  outline: none;
+}
+
+/* "Skip to content": off screen until it is focused. */
+.skip-link {
+  position: fixed;
+  left: 8px;
+  top: -48px;
+  z-index: 60;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--brand-strong);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+/* The phone's bottom bar is 56 px plus the home indicator; gone on a desk. */
+:root {
+  --bottom-bar: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 800px) {
+  :root {
+    --bottom-bar: 0px;
+  }
+}
+
+/* The owner's banner line (components/shell/Nav.tsx) takes 36 px off the feed. */
+:root:has([data-banner]) {
+  --banner: 36px;
+}

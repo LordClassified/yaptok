@@ -1,0 +1,140 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { Avatar } from "@/components/Avatar";
+import { useFollow } from "@/components/feed/useSocial";
+import { ClipIcon, PlayIcon, VerifiedIcon } from "@/components/icons";
+import { clipLength, compactCount } from "@/lib/feed/format";
+import type { Profile } from "@/lib/feed/server";
+import { clipSources, type Clip } from "@/lib/feed/types";
+import { useFlag } from "@/lib/store/session";
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="text-center">
+      <p className="text-[18px] font-bold leading-6 text-text">{compactCount(value)}</p>
+      <p className="text-[13px] text-text-2">{label}</p>
+    </div>
+  );
+}
+
+/** What the owner sees on a clip of theirs that visitors cannot see. */
+function ownerNote(clip: Clip): string | null {
+  if (clip.removed) return "Removed";
+  if (clip.status === "failed") return "Failed";
+  if (clip.status !== "ready") return "Processing";
+  if (clip.visibility === "private") return "Private";
+  return null;
+}
+
+/** A creator's page: who they are, their counts, follow, and a grid of their clips. */
+export function ProfileView({
+  profile,
+  clips,
+  following: followingAtLoad,
+  mine,
+  mediaBase,
+  signedIn,
+}: {
+  profile: Profile;
+  clips: Clip[];
+  following: boolean;
+  mine: boolean;
+  mediaBase: string | null;
+  signedIn: boolean;
+}) {
+  const follows = useFlag("follows");
+  const upload = useFlag("upload");
+  const [following, setFollowing] = useState(followingAtLoad);
+  const [followers, setFollowers] = useState(profile.followerCount);
+  const toggleFollow = useFollow(signedIn, `/@${profile.username}`);
+
+  return (
+    <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-6" data-profile={profile.username}>
+      <header className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:gap-6 sm:text-left">
+        <Avatar name={profile.displayName} url={profile.avatarUrl} size={96} />
+        <div className="min-w-0 flex-1">
+          <h1 className="flex items-center justify-center gap-1.5 text-[24px] font-bold leading-8 text-text sm:justify-start">
+            <span className="truncate">{profile.displayName}</span>
+            {profile.verified && <VerifiedIcon className="h-5 w-5 shrink-0" />}
+          </h1>
+          <p className="text-[15px] text-text-2">@{profile.username}</p>
+          {profile.bio && <p className="mt-2 whitespace-pre-line text-[14px] leading-5 text-text">{profile.bio}</p>}
+          <div className="mt-4 flex justify-center gap-8 sm:justify-start">
+            <Stat value={profile.followingCount} label="Following" />
+            <Stat value={followers} label="Followers" />
+            <Stat value={profile.likeCount} label="Likes" />
+          </div>
+        </div>
+        <div className="shrink-0">
+          {mine ? (
+            <Link href="/settings" className="btn-ghost">
+              Edit profile
+            </Link>
+          ) : (
+            follows &&
+            !profile.banned && (
+              <button
+                type="button"
+                data-follow
+                aria-pressed={following}
+                onClick={() =>
+                  void toggleFollow(profile.id, following, (now, count) => {
+                    setFollowing(now);
+                    setFollowers((c) => count ?? Math.max(0, c + (now ? 1 : -1)));
+                  })
+                }
+                className={following ? "btn-ghost min-w-[120px]" : "btn-primary min-w-[120px]"}
+              >
+                {following ? "Following" : "Follow"}
+              </button>
+            )
+          )}
+        </div>
+      </header>
+
+      {profile.banned ? (
+        <p className="mt-10 text-center text-[14px] text-text-2" data-profile-banned>
+          This account has been banned for breaking the rules.
+        </p>
+      ) : clips.length === 0 ? (
+        <div className="mt-12 text-center" data-profile-empty>
+          <ClipIcon className="mx-auto h-12 w-12 text-text-3" />
+          <p className="mt-3 text-[16px] font-medium text-text">{mine ? "Post your first clip" : "No clips yet"}</p>
+          <p className="mt-1 text-[14px] text-text-2">{mine ? "Your clips will show up here." : "When this creator posts, their clips show up here."}</p>
+          {mine && upload && (
+            <Link href="/upload" className="btn-primary mt-4">
+              Upload
+            </Link>
+          )}
+        </div>
+      ) : (
+        <ul className="mt-8 grid grid-cols-3 gap-1 sm:grid-cols-4 sm:gap-2 lg:grid-cols-5" data-profile-grid>
+          {clips.map((clip) => {
+            const { poster } = clipSources(clip, mediaBase);
+            const note = mine ? ownerNote(clip) : null;
+            return (
+              <li key={clip.id}>
+                <Link href={`/v/${clip.id}`} className="group relative block aspect-[9/16] overflow-hidden rounded-lg bg-skeleton" aria-label={clip.caption || "Clip"}>
+                  {poster && clip.status === "ready" && (
+                    // eslint-disable-next-line @next/next/no-img-element -- covers come from the media bucket, whose address is only known at request time
+                    <img src={poster} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                  )}
+                  <span className="over-video absolute bottom-1 left-1.5 flex items-center gap-0.5 text-[12px] font-medium text-white">
+                    <PlayIcon className="h-3.5 w-3.5" />
+                    {compactCount(clip.viewCount)}
+                  </span>
+                  {clip.durationS !== null && (
+                    <span className="over-video absolute bottom-1 right-1.5 text-[12px] font-medium text-white">{clipLength(clip.durationS)}</span>
+                  )}
+                  {note && <span className="pill absolute left-1.5 top-1.5 !bg-black/70 !text-white">{note}</span>}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
