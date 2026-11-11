@@ -8,6 +8,7 @@ import { compactCount, timeAgo } from "@/lib/feed/format";
 import { clipSources, type Clip } from "@/lib/feed/types";
 import { useFeed } from "@/lib/store/feed";
 import { useFlag } from "@/lib/store/session";
+import { useUi } from "@/lib/store/ui";
 import { ClipPlayer, type ClipPlayerHandle } from "./ClipPlayer";
 import { ClipMenu } from "./ClipMenu";
 import { CommentsSheet } from "./CommentsSheet";
@@ -70,7 +71,10 @@ export function ClipSlide({
   const follows = useFlag("follows");
   const share = useFlag("share");
   const profiles = useFlag("profiles");
+  const gestures = useFlag("gestures");
+  const scrub = useFlag("scrub");
   const toggleLike = useLike(signedIn);
+  const soundBlocked = useUi((s) => s.soundBlocked);
   const toggleFollow = useFollow(signedIn, `/v/${clip.id}`);
   const active = mode === "active";
   const profileHref = `/@${clip.author.username}`;
@@ -86,7 +90,14 @@ export function ClipSlide({
     <article className="flex h-full items-center justify-center" data-clip={clip.id} data-clip-mode={mode}>
       <div className="relative h-full w-full desk:my-4 desk:aspect-[9/16] desk:h-[calc(100%-32px)] desk:w-auto desk:max-w-[calc(100%-180px)] desk:overflow-visible">
         <div className="absolute inset-0 overflow-hidden bg-black desk:rounded-2xl">
-          <ClipPlayer src={src} poster={poster} mode={mode} muted={muted} cover={(clip.height ?? 16) >= (clip.width ?? 9)} ref={playerRef} />
+          <ClipPlayer src={src} poster={poster} mode={mode} muted={muted} cover={(clip.height ?? 16) >= (clip.width ?? 9)}
+            gestures={gestures}
+            scrub={scrub}
+            ref={playerRef}
+            // A double tap only ever likes: it never takes a like back.
+            onDoubleTap={likes ? () => !clip.liked && toggleLike(clip) : undefined}
+            onSoundBlocked={soundBlocked}
+          />
           {/* A soft shade so the text reads on any clip. */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 to-transparent" />
 

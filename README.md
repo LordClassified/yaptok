@@ -135,7 +135,7 @@ extra lines the stack printed: `node worker/index.mjs`.
 6. **A server.** [ops/app/README.md](ops/app/README.md) takes you from nothing
    to your own domain.
 
-How each feature works: [docs/features.md](docs/features.md).
+How each feature works: [docs/features.md](docs/features.md). What is built and what comes next: [docs/roadmap.md](docs/roadmap.md).
 
 ## Checks
 

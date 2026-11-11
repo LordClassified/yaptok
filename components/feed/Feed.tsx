@@ -49,6 +49,7 @@ export function Feed({ initial, mediaBase, signedIn }: { initial: Clip[]; mediaB
   const ready = useFeed((s) => s.ready);
   useEffect(() => {
     start(initial, initial.length >= FEED_PAGE);
+    useUi.getState().syncSound();
     return () => useFeed.getState().stop();
     // Only on mount: a re-render must not restart the feed.
     // eslint-disable-next-line react-hooks/exhaustive-deps

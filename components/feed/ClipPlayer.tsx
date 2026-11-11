@@ -2,7 +2,9 @@
 
 import type Hls from "hls.js";
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { PlayIcon } from "@/components/icons";
+import { HeartIcon, PlayIcon } from "@/components/icons";
+import { clipLength } from "@/lib/feed/format";
+import { DOUBLE_TAP_MS, FAST_RATE, HOLD_MS, holdAction, isDoubleTap, movedTooFar, scrubTime, type HoldAction } from "@/lib/feed/gestures";
 
 /** Safari (desktop and iOS) plays HLS itself; everybody else gets hls.js. */
 function preferNative(video: HTMLVideoElement): boolean {
@@ -21,7 +23,10 @@ export type ClipPlayerHandle = { togglePlay: () => void };
  *   poster   only the cover image
  * Browsers only autoplay without sound, so the feed starts muted; the sound
  * button in the feed turns it on for this clip and every one after it.
- * A tap plays or pauses.
+ * A tap plays or pauses. With `gestures`: a double tap likes (and a single
+ * tap waits a moment to see if a second one comes), a held finger pauses, and
+ * a finger held on the right third plays at double speed until it lifts.
+ * With `scrub` the bar at the bottom can be dragged.
  */
 export function ClipPlayer({
   src,
@@ -29,8 +34,12 @@ export function ClipPlayer({
   mode,
   muted,
   cover = true,
+  gestures = false,
+  scrub = false,
   ref,
   onWatched,
+  onDoubleTap,
+  onSoundBlocked,
 }: {
   src: string | null;
   poster: string | null;
@@ -38,14 +47,28 @@ export function ClipPlayer({
   muted: boolean;
   /** Fill the frame (vertical clips) or show the whole picture with bars (wide ones). */
   cover?: boolean;
+  /** Double tap to like, hold to pause, hold right for 2x (the gestures flag). */
+  gestures?: boolean;
+  /** The bar can be dragged (the scrub flag). */
+  scrub?: boolean;
   ref?: Ref<ClipPlayerHandle>;
   /** Called with the seconds played when the clip leaves the screen. */
   onWatched?: (seconds: number) => void;
+  onDoubleTap?: () => void;
+  /** The browser refused to start with sound: the player muted itself. */
+  onSoundBlocked?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [held, setHeld] = useState<HoldAction | null>(null);
+  const [burst, setBurst] = useState(0);
+  const [scrubbing, setScrubbing] = useState<{ at: number; total: number } | null>(null);
+  const press = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | undefined } | null>(null);
+  const lastTap = useRef(0);
+  const single = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const swallowClick = useRef(false);
   const open = mode !== "poster" && src !== null;
   const active = mode === "active";
 
@@ -98,8 +121,15 @@ export function ClipPlayer({
     }
     let cancelled = false;
     const play = () => {
-      video.play().catch(() => {
-        if (!cancelled) setPaused(true);
+      video.play().catch((err: unknown) => {
+        if (cancelled) return;
+        // Sound without a tap was refused (a fresh visit): start muted instead.
+        // Only that refusal: a play() cut short by the stream attaching is not one.
+        if (!video.muted && err instanceof DOMException && err.name === "NotAllowedError") {
+          video.muted = true;
+          onSoundBlocked?.();
+          video.play().catch(() => !cancelled && setPaused(true));
+        } else if (!(err instanceof DOMException && err.name === "AbortError")) setPaused(true);
       });
     };
     play();
@@ -132,6 +162,28 @@ export function ClipPlayer({
   };
   useImperativeHandle(ref, () => ({ togglePlay }));
 
+  const endHold = () => {
+    const video = videoRef.current;
+    clearTimeout(press.current?.timer);
+    press.current = null;
+    if (!held || !video) return;
+    if (held === "fast") video.playbackRate = 1;
+    else void video.play().catch(() => setPaused(true));
+    setHeld(null);
+    // The lift that ends a hold is not a tap.
+    swallowClick.current = true;
+  };
+
+  const seekTo = (clientX: number, bar: HTMLElement) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const box = bar.getBoundingClientRect();
+    const t = scrubTime(clientX, box.left, box.width, video.duration);
+    video.currentTime = t;
+    setScrubbing({ at: t, total: video.duration });
+    setProgress(video.duration > 0 ? t / video.duration : 0);
+  };
+
   return (
     <div className="absolute inset-0" data-clip-player={mode}>
       <video
@@ -151,12 +203,61 @@ export function ClipPlayer({
       />
       <button
         type="button"
-        onClick={togglePlay}
         aria-label={paused ? "Play" : "Pause"}
         data-clip-tap
-        className="absolute inset-0 cursor-pointer"
+        data-held={held ?? undefined}
+        className="absolute inset-0 cursor-pointer select-none [-webkit-touch-callout:none]"
+        onContextMenu={(e) => gestures && e.preventDefault()}
+        onPointerDown={(e) => {
+          if (!gestures || !active) return;
+          const box = e.currentTarget.getBoundingClientRect();
+          const action = holdAction(e.clientX - box.left, box.width);
+          const timer = setTimeout(() => {
+            const video = videoRef.current;
+            if (!video || video.paused) return;
+            if (action === "fast") video.playbackRate = FAST_RATE;
+            else video.pause();
+            setHeld(action);
+          }, HOLD_MS);
+          press.current = { x: e.clientX, y: e.clientY, timer };
+        }}
+        onPointerMove={(e) => {
+          const p = press.current;
+          if (p && !held && movedTooFar(e.clientX - p.x, e.clientY - p.y)) {
+            clearTimeout(p.timer);
+            press.current = null;
+          }
+        }}
+        onPointerUp={endHold}
+        onPointerCancel={endHold}
+        onPointerLeave={endHold}
+        onClick={(e) => {
+          if (swallowClick.current) {
+            swallowClick.current = false;
+            return;
+          }
+          // The keyboard (detail 0) and players without gestures act at once.
+          if (!gestures || e.detail === 0) return togglePlay();
+          clearTimeout(single.current);
+          if (isDoubleTap(e.timeStamp, lastTap.current)) {
+            lastTap.current = 0;
+            setBurst((n) => n + 1);
+            onDoubleTap?.();
+            return;
+          }
+          lastTap.current = e.timeStamp;
+          single.current = setTimeout(togglePlay, DOUBLE_TAP_MS);
+        }}
       >
-        {active && paused && !failed && src && (
+        {burst > 0 && (
+          <span key={burst} aria-hidden data-heart-burst className="heart-burst pointer-events-none absolute left-1/2 top-1/2">
+            <HeartIcon className="h-28 w-28 text-[var(--accent)] drop-shadow-lg" />
+          </span>
+        )}
+        {held === "fast" && (
+          <span className="over-video absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[13px] font-medium text-white">2x speed</span>
+        )}
+        {active && paused && !held && scrubbing === null && !failed && src && (
           <span className="absolute left-1/2 top-1/2 grid h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/45">
             <PlayIcon className="h-10 w-10 text-white" />
           </span>
@@ -167,9 +268,45 @@ export function ClipPlayer({
           This clip can&apos;t play right now.
         </p>
       )}
-      {active && (
+      {active && !scrub && (
         <div aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25">
           <div className="h-full bg-[var(--brand)]" style={{ width: `${Math.round(progress * 1000) / 10}%` }} />
+        </div>
+      )}
+      {active && scrub && (
+        // A tall touch target around a thin bar. Drags here move through the clip, not the feed.
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label="Position in the clip"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+          data-no-swipe
+          data-scrub
+          className="group absolute inset-x-0 bottom-0 flex h-6 cursor-pointer touch-none items-end"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            seekTo(e.clientX, e.currentTarget);
+          }}
+          onPointerMove={(e) => scrubbing !== null && seekTo(e.clientX, e.currentTarget)}
+          onPointerUp={() => setScrubbing(null)}
+          onPointerCancel={() => setScrubbing(null)}
+          onKeyDown={(e) => {
+            const video = videoRef.current;
+            if (!video || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+            e.preventDefault();
+            video.currentTime = Math.min(video.duration || 0, Math.max(0, video.currentTime + (e.key === "ArrowRight" ? 2 : -2)));
+          }}
+        >
+          {scrubbing !== null && (
+            <span className="over-video absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[14px] font-medium tabular-nums text-white">
+              {clipLength(scrubbing.at)} / {clipLength(scrubbing.total)}
+            </span>
+          )}
+          <div className={`w-full bg-white/25 transition-[height] group-hover:h-[6px] ${scrubbing !== null ? "h-[6px]" : "h-[3px]"}`}>
+            <div className="h-full bg-[var(--brand)]" style={{ width: `${Math.round(progress * 1000) / 10}%` }} />
+          </div>
         </div>
       )}
     </div>

@@ -333,3 +333,33 @@
 :root:has([data-banner]) {
   --banner: 36px;
 }
+
+/* The heart that pops where a double tap liked a clip. */
+@keyframes heart-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4) rotate(-12deg);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(-6deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -58%) scale(1) rotate(-6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -80%) scale(0.9) rotate(-6deg);
+  }
+}
+
+.heart-burst {
+  animation: heart-burst 700ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heart-burst {
+    animation-duration: 1ms;
+  }
+}

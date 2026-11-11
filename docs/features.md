@@ -31,6 +31,8 @@ from `lib/store/session.ts` in the browser.
 | `record` | The Record button on the upload page | off |
 | `processing` | The encoder worker picks up uploads | off |
 | `likes`, `comments`, `follows`, `share` | The buttons on a clip | off |
+| `gestures` | Double tap to like, hold to pause, hold the right side for double speed | off |
+| `scrub` | Drag the bar at the bottom of a clip | off |
 | `reports` | Report a clip or a comment | off |
 | `search`, `hashtags`, `sounds` | Not built yet (later sessions) | off |
 
@@ -43,8 +45,16 @@ or pauses, `m` is sound, `l` likes, `c` opens the comments.
 - Only three clips are in the page at any time: the one playing, the next one
   (its stream already open and buffering, so the swipe starts at once) and the
   cover of the previous one.
-- Browsers only autoplay without sound, so the feed starts muted. The sound
-  button turns it on for every clip after that.
+- Browsers only autoplay without sound, so the first visit starts muted. The
+  sound button turns it on for every clip after that, and the choice is
+  remembered on that device. If the browser still refuses sound before a tap,
+  the clip starts muted instead of not starting.
+- With the `gestures` flag: a double tap likes (it never takes a like back), a
+  held finger pauses, and a finger held on the right third plays at double
+  speed until it lifts. A single tap then waits a quarter of a second before
+  it pauses, to see whether a second tap comes.
+- With the `scrub` flag the bar at the bottom can be dragged, or moved with
+  the left and right arrow keys when it has focus.
 - A view counts after two seconds on a clip, once per viewer, clip and day.
 - The next page of eight clips is fetched three clips before the end.
 - When there is nothing to play, the same stage says why: database not

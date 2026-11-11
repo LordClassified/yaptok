@@ -132,3 +132,32 @@ test("error codes from the database become plain words", () => {
   assert.match(socialErrorText("comments_off"), /switched off/);
   assert.equal(socialErrorText("no_db"), "database not connected");
 });
+
+import { DOUBLE_TAP_MS, holdAction, isDoubleTap, movedTooFar, readMutedPref, scrubTime } from "../lib/feed/gestures.ts";
+
+test("gestures: a second tap in time is a double tap", () => {
+  assert.ok(isDoubleTap(1000 + DOUBLE_TAP_MS, 1000));
+  assert.ok(!isDoubleTap(1000 + DOUBLE_TAP_MS + 1, 1000));
+  assert.ok(!isDoubleTap(100, 0), "the first tap ever is not a double tap");
+});
+
+test("gestures: a finger that moved is a swipe; holding right is 2x, elsewhere pause", () => {
+  assert.ok(!movedTooFar(6, 6));
+  assert.ok(movedTooFar(0, 11));
+  assert.equal(holdAction(100, 390), "pause");
+  assert.equal(holdAction(300, 390), "fast");
+  assert.equal(holdAction(10, 0), "pause");
+});
+
+test("scrub: a point on the bar is a time in the clip, never outside it", () => {
+  assert.equal(scrubTime(200, 100, 200, 10), 5);
+  assert.equal(scrubTime(0, 100, 200, 10), 0);
+  assert.equal(scrubTime(999, 100, 200, 10), 10);
+  assert.equal(scrubTime(200, 100, 200, NaN), 0);
+});
+
+test("sound: only a remembered 'on' starts with sound", () => {
+  assert.equal(readMutedPref("on"), false);
+  assert.equal(readMutedPref("off"), true);
+  assert.equal(readMutedPref(null), true);
+});
