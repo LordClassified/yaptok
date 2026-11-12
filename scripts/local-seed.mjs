@@ -34,7 +34,7 @@ const CLIPS = [
   { by: "mira", caption: "Cinnamon rolls, the lazy way", tags: ["baking", "recipe"], colors: ["b45309", "fde68a", "7c2d12"], seconds: 7 },
   { by: "juno", caption: "Repotting day went sideways", tags: ["plants", "fail"], colors: ["065f46", "fbbf24", "022c22"], seconds: 6 },
   { by: "tobi", caption: "Learning to drop in. Slowly.", tags: ["skate", "progress"], colors: ["0ea5e9", "f97316", "0c4a6e"], seconds: 7 },
-  { by: "owner", caption: "Welcome to YapTok. Say hi in the comments", tags: ["yaptok", "welcome"], colors: ["7c3aed", "f59e0b", "0e0b14"], seconds: 6 },
+  { by: "owner", caption: "Welcome to YapTok. Say hi in the comments", tags: ["yaptok", "welcome"], colors: ["f97316", "fbbf24", "0f0d0c"], seconds: 6 },
   { by: "desk_lab", caption: "The 5 dollar cable fix", tags: ["desksetup", "diy"], colors: ["14b8a6", "1e293b", "e2e8f0"], seconds: 6 },
   { by: "mira", caption: "Rating my own bread, honestly", tags: ["baking", "sourdough"], colors: ["a16207", "fef3c7", "44403c"], seconds: 8 },
   { by: "juno", caption: "Morning light, no talking", tags: ["plants", "routine"], colors: ["fda4af", "86efac", "fde047"], seconds: 6 },

@@ -121,7 +121,8 @@ test("the brand is ours: one mark, drawn in lib/brand.ts", async () => {
   assert.ok(brand.markSvg().includes(brand.MARK_BUBBLE) && brand.markSvg().includes(brand.MARK_BARS));
   assert.match(brand.logoSvg(), /Yap<\/tspan><tspan[^>]*>Tok/);
   const css = readFileSync(join(root, "app/globals.css"), "utf8");
-  assert.ok(css.includes(brand.BRAND.violet), "globals.css uses the brand violet");
+  assert.ok(css.includes(brand.BRAND.orange), "globals.css uses the brand orange");
+  assert.ok(css.includes(brand.BRAND.orangeDeep), "and the darker orange that buttons use");
 });
 
 test("the Supabase settings are never read in a way the build can freeze", () => {

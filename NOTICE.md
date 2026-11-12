@@ -14,7 +14,7 @@ schema) was written for YapTok.
 
 ## Our own name and look
 
-The name YapTok, the speech bubble mark and the violet and amber palette are
+The name YapTok, the speech bubble mark and the orange and gold palette are
 this project's own (see `lib/brand.ts`). The icons are drawn in
 `components/icons.tsx`. YapTok is not affiliated with, endorsed by or
 connected to any other video or social app, and it does not use anyone else's

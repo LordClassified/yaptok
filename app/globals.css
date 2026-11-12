@@ -8,60 +8,60 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --page: #faf9fc;
+  --page: #fdfaf7;
   --surface: #ffffff;
-  --text: #16121f;
-  --text-2: #5b5567;
-  --text-3: #6f697c;
-  --brand: #7c3aed;
-  --brand-strong: #6d28d9;
-  --link: #6d28d9;
-  --mark: #7c3aed;
-  --logo-word: #7c3aed;
-  --accent: #d97706;
-  --divider: #e7e3ee;
-  --hover: #f1eef6;
-  --active: #e7e3ee;
-  --icon: #5b5567;
-  --input-border: #cfc9da;
+  --text: #1c1410;
+  --text-2: #5f554e;
+  --text-3: #736860;
+  --brand: #ea580c;
+  --brand-strong: #c2410c;
+  --link: #c2410c;
+  --mark: #f97316;
+  --logo-word: #ea580c;
+  --accent: #b45309;
+  --divider: #ece5df;
+  --hover: #f5efea;
+  --active: #ece5df;
+  --icon: #5f554e;
+  --input-border: #d6ccc4;
   --input-bg: #ffffff;
-  --skeleton: #ebe7f1;
-  --menu-shadow: 0 8px 32px rgba(22, 18, 31, 0.14), 0 0 0 1px rgba(22, 18, 31, 0.08);
-  --focus: #7c3aed;
+  --skeleton: #efe8e2;
+  --menu-shadow: 0 8px 32px rgba(28, 20, 16, 0.14), 0 0 0 1px rgba(28, 20, 16, 0.08);
+  --focus: #ea580c;
   --error: #c62828;
   --ok: #15803d;
   --warn: #b45309;
-  --progress: #7c3aed;
-  --progress-track: #e7e3ee;
+  --progress: #ea580c;
+  --progress-track: #ece5df;
   color-scheme: light;
 }
 
 :root.dark {
-  --page: #0e0b14;
-  --surface: #17131f;
-  --text: #f5f3fa;
-  --text-2: #b3adc2;
-  --text-3: #8f89a0;
-  --brand: #8b5cf6;
-  --brand-strong: #7c3aed;
-  --link: #a78bfa;
-  --mark: #8b5cf6;
-  --logo-word: #a78bfa;
-  --accent: #f59e0b;
-  --divider: #2a2436;
-  --hover: #221c2e;
-  --active: #2a2436;
-  --icon: #b3adc2;
-  --input-border: #3a3349;
-  --input-bg: #120e1a;
-  --skeleton: #221c2e;
+  --page: #0f0d0c;
+  --surface: #1a1614;
+  --text: #faf6f3;
+  --text-2: #b8aea8;
+  --text-3: #948a84;
+  --brand: #f97316;
+  --brand-strong: #c2410c;
+  --link: #fb923c;
+  --mark: #f97316;
+  --logo-word: #fb923c;
+  --accent: #fbbf24;
+  --divider: #2e2723;
+  --hover: #241e1b;
+  --active: #2e2723;
+  --icon: #b8aea8;
+  --input-border: #3d342f;
+  --input-bg: #140f0d;
+  --skeleton: #241e1b;
   --menu-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  --focus: #a78bfa;
+  --focus: #fb923c;
   --error: #ff6b61;
   --ok: #4ade80;
   --warn: #fbbf24;
-  --progress: #8b5cf6;
-  --progress-track: #2a2436;
+  --progress: #f97316;
+  --progress-track: #2e2723;
   color-scheme: dark;
 }
 
@@ -145,7 +145,7 @@
     appearance: auto;
   }
 
-  /* The main action on a page: a violet pill. */
+  /* The main action on a page: an orange pill. */
   .btn-primary {
     display: inline-flex;
     align-items: center;

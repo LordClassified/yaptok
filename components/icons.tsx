@@ -34,7 +34,7 @@ function solid(children: ReactNode) {
   };
 }
 
-/** The YapTok mark: the violet speech bubble with three sound bars (lib/brand.ts). */
+/** The YapTok mark: the orange speech bubble with three sound bars (lib/brand.ts). */
 export function LogoMark({ className }: IconProps) {
   return (
     <svg viewBox={MARK_VIEWBOX} className={className} aria-hidden>

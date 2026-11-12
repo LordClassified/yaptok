@@ -28,7 +28,7 @@ export function FeedNotice({ state, title, children, action }: { state: string; 
 export function FeedSkeleton() {
   return (
     <div className="feed-stage flex items-center justify-center" aria-hidden>
-      <div className="h-full w-full bg-[#17131f] desk:my-4 desk:aspect-[9/16] desk:h-[calc(100%-32px)] desk:w-auto desk:rounded-2xl" />
+      <div className="h-full w-full bg-[#1a1614] desk:my-4 desk:aspect-[9/16] desk:h-[calc(100%-32px)] desk:w-auto desk:rounded-2xl" />
     </div>
   );
 }
