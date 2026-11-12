@@ -11,7 +11,10 @@ const nextConfig: NextConfig = {
   // Creator pages live at /@username. A folder cannot start with "@" (that
   // marks a parallel route), so the page sits in app/u/[handle] and this maps it.
   async rewrites() {
-    return [{ source: "/@:handle", destination: "/u/:handle" }];
+    return [
+      { source: "/@:handle", destination: "/u/:handle" },
+      { source: "/@:handle/:list(followers|following)", destination: "/u/:handle/:list" },
+    ];
   },
   turbopack: {
     rules: {

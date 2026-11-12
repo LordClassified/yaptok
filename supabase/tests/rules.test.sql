@@ -316,6 +316,16 @@ select t.is(jsonb_array_length(public.discover_page() -> 'clips'), 1, 'Discover 
 select t.is(public.discover_page() -> 'creators' -> 0 ->> 'username', 'bea', 'and creators with clips');
 select t.is(public.discover_page() -> 'tags' -> 0 ->> 'tag', 'yap', 'and trending hashtags');
 
+select t.is(public.follow_list('bea', 'followers'), null, 'follower lists are off until their flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'follow_lists';
+select t.anon();
+select t.is(public.follow_list('BEA', 'followers') -> 'people' -> 0 ->> 'username', 'cal', 'a creator''s followers are listed');
+select t.is(public.follow_list('cal', 'following') -> 'people' -> 0 ->> 'username', 'bea', 'and who an account follows');
+select t.is(jsonb_array_length(public.follow_list('bea', 'following') -> 'people'), 0, 'an empty list is empty');
+select t.is(public.follow_list('nobody_here', 'followers'), null, 'no such account, no list');
+select t.is(public.follow_list('bea', 'friends'), null, 'only the two kinds exist');
+
 -- Reports and moderation --------------------------------------------------------------------
 
 select t.login(:cal);
@@ -398,7 +408,7 @@ select t.is(
       and p.proname not in (
         'is_admin', 'is_banned', 'session_status', 'username_available', 'username_is_valid', 'video_is_visible',
         'video_comments', 'feed_page', 'video_by_id', 'profile_page', 'record_view',
-        'hashtag_page', 'search_all', 'discover_page',
+        'hashtag_page', 'search_all', 'discover_page', 'follow_list',
         'video_extension_for', 'clean_hashtags', 'encode_max_attempts', 'encode_stale_after')),
   '', 'visitors can call only the functions meant for them');
 

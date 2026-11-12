@@ -34,6 +34,7 @@ from `lib/store/session.ts` in the browser.
 | `gestures` | Double tap to like, hold to pause, hold the right side for double speed | off |
 | `scrub` | Drag the bar at the bottom of a clip | off |
 | `following` | The Following feed at `/following` and the switch on top of the feed | off |
+| `follow_lists` | Followers and Following on a profile open the lists | off |
 | `saves` | The bookmark on a clip, and the Liked and Saved tabs on your own profile | off |
 | `reports` | Report a clip or a comment | off |
 | `hashtags` | Hashtag pages at `/tag/<name>`; hashtags on a clip become links | off |

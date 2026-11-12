@@ -11,7 +11,20 @@ import type { Profile, ProfileTab } from "@/lib/feed/server";
 import type { Clip } from "@/lib/feed/types";
 import { useFlag } from "@/lib/store/session";
 
-function Stat({ value, label }: { value: number; label: string }) {
+function Stat({ value, label, href }: { value: number; label: string; href?: string }) {
+  const body = (
+    <>
+      <p className="text-[18px] font-bold leading-6 text-text">{compactCount(value)}</p>
+      <p className="text-[13px] text-text-2">{label}</p>
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} prefetch={false} className="rounded-lg px-1 text-center hover:bg-hover" data-stat-link={label}>
+        {body}
+      </Link>
+    );
+  }
   return (
     <div className="text-center">
       <p className="text-[18px] font-bold leading-6 text-text">{compactCount(value)}</p>
@@ -52,6 +65,7 @@ export function ProfileView({
 }) {
   const follows = useFlag("follows");
   const upload = useFlag("upload");
+  const lists = useFlag("follow_lists");
   const [following, setFollowing] = useState(followingAtLoad);
   const [followers, setFollowers] = useState(profile.followerCount);
   const toggleFollow = useFollow(signedIn, `/@${profile.username}`);
@@ -68,8 +82,8 @@ export function ProfileView({
           <p className="text-[15px] text-text-2">@{profile.username}</p>
           {profile.bio && <p className="mt-2 whitespace-pre-line text-[14px] leading-5 text-text">{profile.bio}</p>}
           <div className="mt-4 flex justify-center gap-8 sm:justify-start">
-            <Stat value={profile.followingCount} label="Following" />
-            <Stat value={followers} label="Followers" />
+            <Stat value={profile.followingCount} label="Following" href={lists ? `/@${profile.username}/following` : undefined} />
+            <Stat value={followers} label="Followers" href={lists ? `/@${profile.username}/followers` : undefined} />
             <Stat value={profile.likeCount} label="Likes" />
           </div>
         </div>
