@@ -206,3 +206,19 @@ test("inbox: notices are read, worded and linked", () => {
   assert.equal(readNotices([{ kind: "like", actor }, null]).length, 1);
   assert.deepEqual([0, 3, 9, 10, 250].map(unreadBadge), [null, "3", "9", "9+", "9+"]);
 });
+
+import { mergeMessages, previewText, readMessage, readThread, readThreads } from "../lib/social/messages.ts";
+
+test("messages: read, previewed and merged without repeats", () => {
+  const person = { id: "11111111-2222-4333-8444-555555555555", username: "mira", display_name: "Mira" };
+  const m = (id, body, mine = false, extra = {}) => ({ id, body, created_at: "2026-11-12T10:00:00Z", mine, ...extra });
+  assert.equal(readMessage({ id: 1 }), null);
+  assert.equal(previewText(readMessage(m(1, "hi"))), "hi");
+  assert.equal(previewText(readMessage(m(2, "", true, { had_video: true }))), "You: Sent a clip");
+  assert.equal(readThreads([{ with: person, last: m(3, "yo"), unread: "2" }, { with: null, last: m(4, "x") }])[0].unread, 2);
+  assert.equal(readThread({ with: person, messages: [m(1, "a"), "junk", m(2, "b")] }).messages.length, 2);
+  assert.equal(readThread({ messages: [] }), null);
+  const have = [readMessage(m(1, "a")), { ...readMessage(m(-5, "new one", true)), pending: true }];
+  const merged = mergeMessages(have, [readMessage(m(1, "a")), readMessage(m(2, "new one", true))]);
+  assert.deepEqual(merged.map((x) => x.id), [1, 2], "the pending copy goes once the saved one arrives");
+});

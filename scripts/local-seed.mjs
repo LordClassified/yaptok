@@ -98,7 +98,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       await q("select set_config('request.jwt.claims', '', false)");
     }
   };
-  for (const key of ["inbox", "feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover", "follow_lists", "comment_threads"]) {
+  for (const key of ["messages", "inbox", "feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover", "follow_lists", "comment_threads"]) {
     await asOwner("select public.set_feature_flag($1, 'everyone')", [key]);
   }
   await asOwner("select public.set_feature_flag('record', 'test')");
@@ -161,6 +161,14 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
     if (i % 2 === 0) await q("insert into public.comments (video_id, author_id, body, parent_id) values ($1, $2, $3, $4)", [c.video_id, ids[others[i % others.length]], REPLIES[i % REPLIES.length], c.id]);
     for (let k = 0; k < (i * 3) % 5; k++) await q("insert into public.comment_likes (comment_id, user_id) values ($1, $2) on conflict do nothing", [c.id, ids[others[(i + k) % others.length]]]);
   }
+
+  // A couple of conversations for the Messages page.
+  const dm = (from, to, body, video = null) => q("insert into public.messages (sender_id, receiver_id, body, video_id) values ($1, $2, $3, $4)", [ids[from], ids[to], body, video]);
+  await dm("mira", "owner", "Hi! Love what you are building here");
+  await dm("owner", "mira", "Thank you! Your bread clips are the best thing on the feed");
+  await dm("mira", "owner", "Look at this one", CLIPS[1].id);
+  await dm("tobi", "owner", "Can I get verified?");
+  await dm("juno", "mira", "", CLIPS[3].id);
 
   // Something for the moderation queue and the log.
   const spam = CLIPS.find((c) => c.by === "spam_sam");

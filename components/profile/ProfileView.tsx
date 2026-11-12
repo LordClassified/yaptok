@@ -66,6 +66,7 @@ export function ProfileView({
   const follows = useFlag("follows");
   const upload = useFlag("upload");
   const lists = useFlag("follow_lists");
+  const messagesOn = useFlag("messages");
   const [following, setFollowing] = useState(followingAtLoad);
   const [followers, setFollowers] = useState(profile.followerCount);
   const toggleFollow = useFollow(signedIn, `/@${profile.username}`);
@@ -87,7 +88,12 @@ export function ProfileView({
             <Stat value={profile.likeCount} label="Likes" />
           </div>
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 gap-2">
+          {!mine && messagesOn && signedIn && !profile.banned && (
+            <Link href={`/messages/${profile.username}`} prefetch={false} className="btn-ghost" data-message-button>
+              Message
+            </Link>
+          )}
           {mine ? (
             <Link href="/settings" className="btn-ghost">
               Edit profile

@@ -334,6 +334,31 @@ select t.is(jsonb_array_length(public.inbox_page()), 0, 'nobody sees someone els
 select t.anon();
 select t.is(t.err($$select public.inbox_page()$$), 'permission denied for function inbox_page', 'visitors have no inbox');
 
+-- Messages ------------------------------------------------------------------------------------
+
+select t.login(:cal);
+select t.is(t.err($$select public.send_message('00000000-0000-4000-8000-00000000000b', 'hi')$$), 'messages_off', 'messages are off until their flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'messages';
+select t.login(:cal);
+select t.is(public.send_message(:bea, E'  hello\nthere ') ->> 'body', 'hello there', 'a message is sent, trimmed to one line');
+select t.is(public.send_message(:bea, '', :clip) -> 'video' ->> 'username', 'bea', 'a clip can be sent along');
+select t.is(t.err($$select public.send_message(auth.uid(), 'me')$$), 'self', 'nobody messages themselves');
+select t.is(t.err($$select public.send_message('00000000-0000-4000-8000-00000000000b', '')$$), 'message_invalid', 'an empty message is refused');
+select t.is(t.err($$select public.send_message(gen_random_uuid(), 'hi')$$), 'not_found', 'the other account must exist');
+select t.is(t.err($$select * from public.messages$$), 'permission denied for table messages', 'messages are not readable directly');
+select t.login(:bea);
+select t.is(public.dm_unread(), 2, 'the receiver has two unread');
+select t.is(public.dm_threads() -> 0 -> 'with' ->> 'username', 'cal', 'the conversation is listed');
+select t.is((public.dm_threads() -> 0 ->> 'unread')::int, 2, 'with its unread count');
+select t.is(jsonb_array_length(public.dm_thread('cal') -> 'messages'), 2, 'the conversation has both messages, oldest first');
+select t.is(public.dm_unread(), 0, 'opening it marks them read');
+select t.login(:owner);
+select t.is(jsonb_array_length(public.dm_threads()), 0, 'nobody sees someone else''s conversations');
+select t.is(jsonb_array_length(public.dm_thread('cal') -> 'messages'), 0, 'or reads them by asking for one side');
+select t.anon();
+select t.is(t.err($$select public.dm_threads()$$), 'permission denied for function dm_threads', 'visitors have no messages');
+
 -- Hashtags, search, Discover ----------------------------------------------------------------
 
 select t.anon();

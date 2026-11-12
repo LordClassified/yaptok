@@ -4,7 +4,7 @@ The goal: everything people expect from an app of this kind, finished to a
 high standard, with YapTok's own name, mark and look. One feature per session,
 each behind its flag in `/admin`.
 
-Status on 2026-11-12: **13 built, 9 partial, 10 missing** (32 items). Branches, each stacked on the one before: `feature/player-polish`, `feature/following-feed`, `feature/saves`, `feature/discover`, `feature/follow-lists`, `feature/comment-threads`, `feature/inbox`.
+Status on 2026-11-12: **13 built, 10 partial, 9 missing** (32 items). Branches, each stacked on the one before: `feature/player-polish`, `feature/following-feed`, `feature/saves`, `feature/discover`, `feature/follow-lists`, `feature/comment-threads`, `feature/inbox`, `feature/messages`.
 
 ## Checklist
 
@@ -34,7 +34,7 @@ Status on 2026-11-12: **13 built, 9 partial, 10 missing** (32 items). Branches, 
 | 22 | Search: clips, people, sounds, tags | built | People, hashtags and clips (`search` flag). Simple matching; sounds when they exist |
 | 23 | Discover and trending | built | Trending hashtags, creators, popular clips this week (`discover` flag) |
 | 24 | Profiles | partial | Grid, bio, counts, follow, follower and following lists, the owner's Liked and Saved tabs. No picture upload, links |
-| 25 | Direct messages | missing | |
+| 25 | Direct messages | partial | Text and sending a clip, a list of conversations, unread counts (`messages` flag). New messages arrive by asking every few seconds, not instantly. No blocking or "who can message me" yet |
 | 26 | Activity inbox and notifications | partial | The Inbox page with an unread dot (`inbox` flag). No push notifications |
 | 27 | Live streams | missing | Last phase, needs a streaming service |
 | 28 | Creator analytics | missing | |

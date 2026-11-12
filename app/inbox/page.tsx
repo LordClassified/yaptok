@@ -19,7 +19,9 @@ async function Inbox() {
   if (!user) redirect("/login?next=/inbox");
   const supabase = await createClient();
   const { data } = supabase ? await supabase.rpc("inbox_page") : { data: null };
-  return <InboxList notices={readNotices(data)} />;
+  const messagesOn = await flagOn("messages", user.id);
+  const unread = messagesOn && supabase ? Number((await supabase.rpc("dm_unread")).data) || 0 : null;
+  return <InboxList notices={readNotices(data)} messagesUnread={unread} />;
 }
 
 /** The activity inbox: who liked, commented, replied or followed. */

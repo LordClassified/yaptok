@@ -15,13 +15,15 @@ import { createClient } from "@/lib/supabase/client";
 type Item = { href: string; label: string; icon: ReactNode; active: boolean; key: string; badge?: string | null };
 
 /** Asks how many unread inbox items there are, once per page the person opens. */
-function useUnread(on: boolean): number {
+function useUnread(on: boolean, messages: boolean): number {
   const path = usePathname();
   const unread = useUi((s) => s.unread);
   useEffect(() => {
     if (!on) return;
-    void callRpc<number>("inbox_unread").then((res) => res.ok && useUi.getState().setUnread(Number(res.data) || 0));
-  }, [on, path]);
+    void Promise.all([callRpc<number>("inbox_unread"), messages ? callRpc<number>("dm_unread") : null]).then(([a, b]) => {
+      useUi.getState().setUnread((a.ok ? Number(a.data) || 0 : 0) + (b?.ok ? Number(b.data) || 0 : 0));
+    });
+  }, [on, messages, path]);
   return on ? unread : 0;
 }
 
@@ -31,7 +33,7 @@ function useNavItems(): Item[] {
   const user = useSession((s) => s.user);
   const flags = useSession((s) => s.flags);
   const admin = useSession((s) => s.admin);
-  const unread = useUnread(user !== null && flags.inbox === true);
+  const unread = useUnread(user !== null && flags.inbox === true, flags.messages === true);
   const items: Item[] = [
     { key: "home", href: "/", label: "For You", icon: <HomeIcon className="h-6 w-6" />, active: path === "/" || path === "/following" || path.startsWith("/v/") },
   ];
@@ -48,7 +50,7 @@ function useNavItems(): Item[] {
     });
   }
   if (user && flags.inbox) {
-    items.push({ key: "inbox", href: "/inbox", label: "Inbox", icon: <BellIcon className="h-6 w-6" />, active: path === "/inbox", badge: unreadBadge(unread) });
+    items.push({ key: "inbox", href: "/inbox", label: "Inbox", icon: <BellIcon className="h-6 w-6" />, active: path === "/inbox" || path.startsWith("/messages"), badge: unreadBadge(unread) });
   }
   if (user && flags.profiles) {
     const href = `/@${user.username}`;

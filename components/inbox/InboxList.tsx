@@ -10,21 +10,38 @@ import { noticeHref, noticeText, type Notice } from "@/lib/social/inbox";
 import { useUi } from "@/lib/store/ui";
 
 /** The inbox: what happened, newest first. Opening the page marks everything read. */
-export function InboxList({ notices }: { notices: Notice[] }) {
+export function InboxList({ notices, messagesUnread }: { notices: Notice[]; messagesUnread: number | null }) {
   const setUnread = useUi((s) => s.setUnread);
   useEffect(() => {
-    void callRpc("inbox_mark_read").then(() => setUnread(0));
-  }, [setUnread]);
+    // Unread messages stay on the dot until their conversation is opened.
+    void callRpc("inbox_mark_read").then(() => setUnread(messagesUnread ?? 0));
+  }, [setUnread, messagesUnread]);
+
+  const messages = messagesUnread !== null && (
+    <Link href="/messages" prefetch={false} className="card mt-4 flex items-center justify-between px-4 py-3 text-[15px] font-medium text-text hover:bg-hover" data-messages-link>
+      Messages
+      {messagesUnread > 0 ? (
+        <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[var(--accent)] px-1.5 text-[11px] font-bold text-black">{messagesUnread}</span>
+      ) : (
+        <span className="text-[13px] font-normal text-text-2">Open</span>
+      )}
+    </Link>
+  );
 
   if (notices.length === 0) {
     return (
+      <>
+        {messages}
       <div className="mt-16 text-center" data-inbox-empty>
         <p className="text-[16px] font-medium text-text">Nothing yet</p>
         <p className="mt-1 text-[14px] text-text-2">Likes, comments, replies and new followers show up here.</p>
       </div>
+      </>
     );
   }
   return (
+    <>
+      {messages}
     <ul className="mt-2 divide-y divide-divider" data-inbox>
       {notices.map((n) => (
         <li key={n.id}>
@@ -53,5 +70,6 @@ export function InboxList({ notices }: { notices: Notice[] }) {
         </li>
       ))}
     </ul>
+    </>
   );
 }
