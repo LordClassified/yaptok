@@ -91,7 +91,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       await q("select set_config('request.jwt.claims', '', false)");
     }
   };
-  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following"]) {
+  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves"]) {
     await asOwner("select public.set_feature_flag($1, 'everyone')", [key]);
   }
   await asOwner("select public.set_feature_flag('record', 'test')");
@@ -133,6 +133,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       if ((n + v) % 6 === 0) {
         await q("insert into public.comments (video_id, author_id, body, created_at) values ($1, $2, $3, $4)", [clip.id, ids[viewer], COMMENTS[(n + v) % COMMENTS.length], new Date(now - ((n + v) % 9) * 3600000)]);
       }
+      if ((n * 3 + v) % 7 === 0) await q("insert into public.saves (video_id, user_id) values ($1, $2) on conflict do nothing", [clip.id, ids[viewer]]);
       if ((n + v) % 4 === 0) await q("insert into public.follows (follower_id, followee_id) values ($1, $2) on conflict do nothing", [ids[viewer], ids[clip.by]]);
     }
     let total = 0;

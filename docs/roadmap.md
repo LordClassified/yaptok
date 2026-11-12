@@ -4,7 +4,7 @@ The goal: everything people expect from an app of this kind, finished to a
 high standard, with YapTok's own name, mark and look. One feature per session,
 each behind its flag in `/admin`.
 
-Status on 2026-11-11: **9 built, 8 partial, 15 missing** (32 items).
+Status on 2026-11-12: **10 built, 9 partial, 13 missing** (32 items).
 
 ## Checklist
 
@@ -12,7 +12,7 @@ Status on 2026-11-11: **9 built, 8 partial, 15 missing** (32 items).
 | --- | --- | --- | --- |
 | 1 | For You feed | partial | Works, paged, newest first. No ranking yet |
 | 2 | Ranking signals (watch time, rewatches, likes, shares, follows, not interested) | missing | Views are counted once a day per viewer; watch time is not recorded |
-| 3 | Following feed | missing | |
+| 3 | Following feed | built | `/following` and the switch on top of the feed, `following` flag |
 | 4 | Swipe player: autoplay, next clip preloaded | built | Swipe, wheel, keys; three clips in the page at a time |
 | 5 | Sound choice remembered | built | On the device; falls back to muted when the browser refuses |
 | 6 | Double tap to like | built | `gestures` flag |
@@ -22,7 +22,7 @@ Status on 2026-11-11: **9 built, 8 partial, 15 missing** (32 items).
 | 10 | Like | built | Instant, put back if the database says no |
 | 11 | Comments | partial | One level, delete, report. No replies, comment likes, pins or mentions |
 | 12 | Share | partial | Copy link and the phone share sheet. No repost |
-| 13 | Save to collections | missing | |
+| 13 | Save to collections | partial | Save a clip and find it in a private Saved tab (`saves` flag). No named collections |
 | 14 | Repost | missing | |
 | 15 | Clips made with another clip (side by side, or continuing from it) | missing | Needs the encoder to join two videos |
 | 16 | Sounds: pick one, a page per sound, original audio | missing | Original audio from creators only, see below |
@@ -33,7 +33,7 @@ Status on 2026-11-11: **9 built, 8 partial, 15 missing** (32 items).
 | 21 | Hashtags and hashtag pages | partial | Saved on upload, shown on the clip. No pages |
 | 22 | Search: clips, people, sounds, tags | missing | |
 | 23 | Discover and trending | missing | |
-| 24 | Profiles | partial | Grid, bio, counts, follow. No picture upload, liked or saved tabs, links, follow lists |
+| 24 | Profiles | partial | Grid, bio, counts, follow, the owner's Liked and Saved tabs. No picture upload, links, follow lists |
 | 25 | Direct messages | missing | |
 | 26 | Activity inbox and notifications | missing | |
 | 27 | Live streams | missing | Last phase, needs a streaming service |
@@ -46,9 +46,9 @@ Status on 2026-11-11: **9 built, 8 partial, 15 missing** (32 items).
 ## Phases, in the order people feel them
 
 1. **The player and the basics you touch every minute.** Gestures, scrub bar
-   and sound memory (done, branch `feature/player-polish`). Next: Following
-   feed, save a clip, liked and saved tabs on the profile, profile pictures,
-   follower and following lists.
+   and sound memory (branch `feature/player-polish`), the Following feed
+   (`feature/following-feed`), saves with Liked and Saved tabs
+   (`feature/saves`). Next: profile pictures, follower and following lists.
 2. **Finding things.** Hashtag pages, search, a Discover page, and a real
    ranking for For You: record watch time and rewatches, add "not interested",
    score clips from those plus likes, shares and follows.

@@ -20,6 +20,8 @@ const row = (n, extra = {}) => ({
   comment_count: "2",
   view_count: 10,
   share_count: 0,
+  save_count: 4,
+  saved: true,
   published_at: `2026-11-0${n}T10:00:00Z`,
   created_at: `2026-11-0${n}T09:00:00Z`,
   removed: false,
@@ -91,6 +93,8 @@ test("clips are read field by field", () => {
   assert.equal(clip.commentCount, 2);
   assert.equal(clip.author.displayName, "mira", "an empty name falls back to the username");
   assert.equal(clip.liked, true);
+  assert.equal(clip.saved, true);
+  assert.equal(clip.saveCount, 4);
   assert.equal(readClip({ id: "nope" }), null);
   assert.equal(readClip(row(1, { author: null })), null);
   assert.equal(readClips([row(1), "junk", row(2)]).length, 2);

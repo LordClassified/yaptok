@@ -33,6 +33,8 @@ from `lib/store/session.ts` in the browser.
 | `likes`, `comments`, `follows`, `share` | The buttons on a clip | off |
 | `gestures` | Double tap to like, hold to pause, hold the right side for double speed | off |
 | `scrub` | Drag the bar at the bottom of a clip | off |
+| `following` | The Following feed at `/following` and the switch on top of the feed | off |
+| `saves` | The bookmark on a clip, and the Liked and Saved tabs on your own profile | off |
 | `reports` | Report a clip or a comment | off |
 | `search`, `hashtags`, `sounds` | Not built yet (later sessions) | off |
 
@@ -59,6 +61,11 @@ or pauses, `m` is sound, `l` likes, `c` opens the comments.
 - The next page of eight clips is fetched three clips before the end.
 - When there is nothing to play, the same stage says why: database not
   connected, feed switched off, or no clips yet.
+
+With the `following` flag a switch sits on top of the feed: For You, or
+Following (`/following`), which is the same player over the clips of the
+creators you follow. With the `saves` flag every clip has a bookmark; saved
+and liked clips are listed on two tabs of your own profile that only you see.
 
 Every rule is a small pure function in `lib/feed/nav.ts` with tests in
 `tests/feed.test.mjs`; `components/feed/Feed.tsx` only connects them to the

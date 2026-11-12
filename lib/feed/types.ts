@@ -27,6 +27,7 @@ export type Clip = {
   commentCount: number;
   viewCount: number;
   shareCount: number;
+  saveCount: number;
   publishedAt: string | null;
   createdAt: string;
   /** Removed by an admin. Only the owner ever gets such a clip back. */
@@ -35,6 +36,7 @@ export type Clip = {
   /** What the person asking has done. Always false for a signed out visitor. */
   liked: boolean;
   following: boolean;
+  saved: boolean;
   mine: boolean;
 };
 
@@ -82,12 +84,14 @@ export function readClip(value: unknown): Clip | null {
     commentCount: count(r.comment_count),
     viewCount: count(r.view_count),
     shareCount: count(r.share_count),
+    saveCount: count(r.save_count),
     publishedAt: strOrNull(r.published_at),
     createdAt: str(r.created_at),
     removed: r.removed === true,
     author,
     liked: r.liked === true,
     following: r.following === true,
+    saved: r.saved === true,
     mine: r.mine === true,
   };
 }

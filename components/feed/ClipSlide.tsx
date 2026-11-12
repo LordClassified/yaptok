@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Ref } from "react";
 import { Avatar } from "@/components/Avatar";
-import { CommentIcon, HeartIcon, MoreIcon, MutedIcon, PlusIcon, ShareIcon, VerifiedIcon, VolumeIcon } from "@/components/icons";
+import { BookmarkIcon, CommentIcon, HeartIcon, MoreIcon, MutedIcon, PlusIcon, ShareIcon, VerifiedIcon, VolumeIcon } from "@/components/icons";
 import { compactCount, timeAgo } from "@/lib/feed/format";
 import { clipSources, type Clip } from "@/lib/feed/types";
 import { useFeed } from "@/lib/store/feed";
@@ -14,7 +14,7 @@ import { ClipMenu } from "./ClipMenu";
 import { CommentsSheet } from "./CommentsSheet";
 import { ReportSheet } from "./ReportSheet";
 import { ShareSheet } from "./ShareSheet";
-import { useFollow, useLike } from "./useSocial";
+import { useFollow, useLike, useSave } from "./useSocial";
 
 function RailButton({
   label,
@@ -70,10 +70,12 @@ export function ClipSlide({
   const comments = useFlag("comments");
   const follows = useFlag("follows");
   const share = useFlag("share");
+  const saves = useFlag("saves");
   const profiles = useFlag("profiles");
   const gestures = useFlag("gestures");
   const scrub = useFlag("scrub");
   const toggleLike = useLike(signedIn);
+  const toggleSave = useSave(signedIn);
   const soundBlocked = useUi((s) => s.soundBlocked);
   const toggleFollow = useFollow(signedIn, `/v/${clip.id}`);
   const active = mode === "active";
@@ -166,6 +168,11 @@ export function ClipSlide({
           {comments && (
             <RailButton label="Comments" count={clip.commentCount} onClick={() => openSheet(sheet === "comments" ? null : "comments")} testId="comments">
               <CommentIcon className="h-7 w-7" />
+            </RailButton>
+          )}
+          {saves && (
+            <RailButton label={clip.saved ? "Remove from saved" : "Save"} pressed={clip.saved} count={clip.saveCount} onClick={() => toggleSave(clip)} testId="save">
+              <BookmarkIcon className={`h-6 w-6 ${clip.saved ? "text-[var(--accent)]" : "text-white"}`} />
             </RailButton>
           )}
           {share && (

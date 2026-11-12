@@ -32,6 +32,29 @@ export function useLike(signedIn: boolean) {
   );
 }
 
+/** Save a clip for later, or take it out again. Instant, like a like. */
+export function useSave(signedIn: boolean) {
+  const router = useRouter();
+  return useCallback(
+    (clip: Clip) => {
+      if (!signedIn) return router.push(loginUrl(`/v/${clip.id}`));
+      const want = !clip.saved;
+      const { patch } = useFeed.getState();
+      patch(clip.id, { saved: want, saveCount: Math.max(0, clip.saveCount + (want ? 1 : -1)) });
+      void callRpc<{ saved: boolean; save_count: number }>("toggle_save", { p_video: clip.id, p_on: want }).then((res) => {
+        if (res.ok) {
+          patch(clip.id, { saved: res.data.saved === true, saveCount: Number(res.data.save_count) || 0 });
+          if (want) useUi.getState().showToast("Saved. Find it on your profile.");
+        } else {
+          patch(clip.id, { saved: clip.saved, saveCount: clip.saveCount });
+          useUi.getState().showToast(socialErrorText(res.code));
+        }
+      });
+    },
+    [signedIn, router],
+  );
+}
+
 /** Follow or unfollow a creator. Answers the new state through onChange. */
 export function useFollow(signedIn: boolean, next: string) {
   const router = useRouter();

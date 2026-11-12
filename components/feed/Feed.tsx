@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import {
   FEED_PAGE,
@@ -57,15 +57,18 @@ export function Feed({
 
   // The server rendered the first page: hand it to the store once per page
   // load. Until then draw straight from it, so the first paint is the feed.
-  const ready = useFeed((s) => s.ready);
+  const me = useId();
+  const ready = useFeed((s) => s.owner === me);
+  const parked = useFeed((s) => s.owner !== me && s.parked[me] === true);
   useEffect(() => {
-    start(initial, initial.length >= FEED_PAGE);
+    start(me, initial, initial.length >= FEED_PAGE);
     useUi.getState().syncSound();
-    return () => useFeed.getState().stop();
+    return () => useFeed.getState().stop(me);
     // Only on mount: a re-render must not restart the feed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const list = ready ? clips : initial;
+  // Hidden behind another page: draw nothing, so no second set of players exists.
+  const list = ready ? clips : parked ? [] : initial;
   const at = ready ? index : 0;
   const current = list[at];
 

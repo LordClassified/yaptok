@@ -81,12 +81,25 @@ export type ProfileState =
   | { kind: "no-db" }
   | { kind: "off" }
   | { kind: "missing" }
-  | { kind: "found"; profile: Profile; clips: Clip[]; following: boolean; mine: boolean; mediaBase: string | null; signedIn: boolean };
+  | {
+      kind: "found";
+      profile: Profile;
+      clips: Clip[];
+      following: boolean;
+      mine: boolean;
+      mediaBase: string | null;
+      signedIn: boolean;
+      /** Which list is shown. Liked and Saved are only for the owner, with the saves flag on. */
+      tab: ProfileTab;
+      tabsOn: boolean;
+    };
+
+export type ProfileTab = "clips" | "liked" | "saved";
 
 const n = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
 
 /** A creator and their clips for /@username. */
-export async function profileState(username: string): Promise<ProfileState> {
+export async function profileState(username: string, wanted: ProfileTab = "clips"): Promise<ProfileState> {
   await connection();
   if (!readSupabaseConfig()) return { kind: "no-db" };
   const user = await getCurrentUser();
@@ -99,6 +112,11 @@ export async function profileState(username: string): Promise<ProfileState> {
   const author = readAuthor(page?.profile);
   if (!page?.profile || !author) return { kind: "missing" };
   const p = page.profile;
+  const mine = page.mine === true;
+  const tabsOn = mine && (await flagOn("saves", user?.id ?? null));
+  const tab: ProfileTab = tabsOn ? wanted : "clips";
+  // The owner's private lists come from my_clips(), which only ever answers the caller's own.
+  const listed = tab === "clips" ? page.videos : (await supabase.rpc("my_clips", { p_kind: tab })).data;
   return {
     kind: "found",
     profile: {
@@ -110,9 +128,11 @@ export async function profileState(username: string): Promise<ProfileState> {
       videoCount: n(p.video_count),
       likeCount: n(p.like_count),
     },
-    clips: readClips(page.videos),
+    clips: readClips(listed),
     following: page.following === true,
-    mine: page.mine === true,
+    mine,
+    tab,
+    tabsOn,
     mediaBase: mediaBase(),
     signedIn: user !== null,
   };
