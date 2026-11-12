@@ -24,6 +24,12 @@
 //             every migration
 //   --seed    made up accounts and test pattern clips (see local-seed.mjs)
 //   --port N  the port to listen on (default 54321)
+//   --host A  this computer's address on your Wi-Fi, like 192.168.1.20, to open
+//             the demo on a phone on the same network. The stack then listens
+//             on every interface, so only use it on a network you trust.
+//             Start the app with `npx next start -H 0.0.0.0` and open
+//             http://A:3000 on the phone. Plain http: the feed and the admin
+//             panel work, the camera and "copy link" need https.
 //
 // Everything it makes is made up. Never point it at a real database.
 
@@ -44,7 +50,12 @@ const option = (name, fallback) => (argv.includes(name) ? argv[argv.indexOf(name
 const PORT = Number(option("--port", process.env.STACK_PORT ?? 54321));
 const ADMIN_URL = process.env.DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5432/postgres";
 const DB_NAME = "yaptok_local";
-const BASE = `http://127.0.0.1:${PORT}`;
+const HOST = option("--host", process.env.STACK_HOST ?? "127.0.0.1");
+if (!/^[a-z0-9.-]+$/i.test(HOST)) {
+  console.error("--host takes an address like 192.168.1.20");
+  process.exit(2);
+}
+const BASE = `http://${HOST}:${PORT}`;
 export const DATA_DIR = resolve(process.env.STACK_DATA_DIR ?? join(tmpdir(), "yaptok-local-stack"));
 const BUCKET = "yaptok-local";
 // A fixed, public, local only signing secret: these tokens mean nothing anywhere else.
@@ -450,7 +461,7 @@ export function startServer() {
       res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(payload));
     }
   });
-  return new Promise((done) => server.listen(PORT, "127.0.0.1", () => done(server)));
+  return new Promise((done) => server.listen(PORT, HOST === "127.0.0.1" ? "127.0.0.1" : "0.0.0.0", () => done(server)));
 }
 
 export const appEnv = () => ({

@@ -36,7 +36,10 @@ from `lib/store/session.ts` in the browser.
 | `following` | The Following feed at `/following` and the switch on top of the feed | off |
 | `saves` | The bookmark on a clip, and the Liked and Saved tabs on your own profile | off |
 | `reports` | Report a clip or a comment | off |
-| `search`, `hashtags`, `sounds` | Not built yet (later sessions) | off |
+| `hashtags` | Hashtag pages at `/tag/<name>`; hashtags on a clip become links | off |
+| `search` | Search for people, hashtags and clips at `/search` | off |
+| `discover` | Popular hashtags, creators and clips on `/search` before you type | off |
+| `sounds` | Not built yet (later session) | off |
 
 ## The feed
 
@@ -71,6 +74,16 @@ Every rule is a small pure function in `lib/feed/nav.ts` with tests in
 `tests/feed.test.mjs`; `components/feed/Feed.tsx` only connects them to the
 page. The order is newest first for now. A ranked feed only has to change
 `feed_page()` in `007_feed.sql`.
+
+## Finding things
+
+`/search` is one page: before you type it shows what is popular (trending
+hashtags of the last 30 days, creators by followers, clips by views this
+week); with a query it shows people, hashtags and clips. The box is a plain
+form, so a search has an address you can share. `/tag/<name>` lists every clip
+with that hashtag. Matching is simple for now (the start of a username, a
+caption that contains the text); a text index is a later migration. Code:
+`013_discover.sql`, `lib/discover/`, `components/discover/`.
 
 ## Upload
 
@@ -133,6 +146,9 @@ anything (every function refuses it), and its clips and comments drop out of
 every list until it is unbanned. Nothing is deleted.
 
 ## Local stack
+
+To show the demo on a phone on the same Wi-Fi, add `--host` with this
+computer's address (see the top of `scripts/local-stack.mjs`).
 
 `npm run stack -- --reset --seed` starts a small stand in for Supabase and R2
 on top of a local PostgreSQL with the real migrations (see the top of

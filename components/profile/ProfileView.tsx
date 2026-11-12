@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { useFollow } from "@/components/feed/useSocial";
-import { ClipIcon, PlayIcon, VerifiedIcon } from "@/components/icons";
-import { clipLength, compactCount } from "@/lib/feed/format";
+import { ClipGrid } from "@/components/feed/ClipGrid";
+import { ClipIcon, VerifiedIcon } from "@/components/icons";
+import { compactCount } from "@/lib/feed/format";
 import type { Profile, ProfileTab } from "@/lib/feed/server";
-import { clipSources, type Clip } from "@/lib/feed/types";
+import type { Clip } from "@/lib/feed/types";
 import { useFlag } from "@/lib/store/session";
 
 function Stat({ value, label }: { value: number; label: string }) {
@@ -146,30 +147,9 @@ export function ProfileView({
           )}
         </div>
       ) : (
-        <ul className="mt-8 grid grid-cols-3 gap-1 sm:grid-cols-4 sm:gap-2 lg:grid-cols-5" data-profile-grid>
-          {clips.map((clip) => {
-            const { poster } = clipSources(clip, mediaBase);
-            const note = mine && tab === "clips" ? ownerNote(clip) : null;
-            return (
-              <li key={clip.id}>
-                <Link href={`/v/${clip.id}`} className="group relative block aspect-[9/16] overflow-hidden rounded-lg bg-skeleton" aria-label={clip.caption || "Clip"}>
-                  {poster && clip.status === "ready" && (
-                    // eslint-disable-next-line @next/next/no-img-element -- covers come from the media bucket, whose address is only known at request time
-                    <img src={poster} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                  )}
-                  <span className="over-video absolute bottom-1 left-1.5 flex items-center gap-0.5 text-[12px] font-medium text-white">
-                    <PlayIcon className="h-3.5 w-3.5" />
-                    {compactCount(clip.viewCount)}
-                  </span>
-                  {clip.durationS !== null && (
-                    <span className="over-video absolute bottom-1 right-1.5 text-[12px] font-medium text-white">{clipLength(clip.durationS)}</span>
-                  )}
-                  {note && <span className="pill absolute left-1.5 top-1.5 !bg-black/70 !text-white">{note}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="mt-8">
+          <ClipGrid clips={clips} mediaBase={mediaBase} note={mine && tab === "clips" ? ownerNote : undefined} />
+        </div>
       )}
     </div>
   );

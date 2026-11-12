@@ -294,6 +294,28 @@ select t.is(jsonb_array_length(public.profile_page('bea') -> 'videos'), 1, 'a vi
 select t.login(:bea);
 select t.is(jsonb_array_length(public.profile_page('bea') -> 'videos'), 2, 'the owner also sees their failed clip');
 
+-- Hashtags, search, Discover ----------------------------------------------------------------
+
+select t.anon();
+select t.is(public.hashtag_page('yap'), null, 'hashtag pages are off until their flag is on');
+select t.is(public.search_all('ready'), null, 'search is off until its flag is on');
+select t.is(public.discover_page(), null, 'Discover is off until its flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key in ('hashtags', 'search', 'discover');
+select t.anon();
+select t.is(public.hashtag_page('#YAP') ->> 'clip_count', '1', 'a hashtag page counts its clips, whatever the case');
+select t.is(jsonb_array_length(public.hashtag_page('yap') -> 'videos'), 1, 'and lists them');
+select t.is(public.hashtag_page('cats') ->> 'clip_count', '0', 'a failed clip is not on its hashtag page');
+select t.is(public.hashtag_page('no such tag!'), null, 'a hashtag that cannot exist has no page');
+select t.is(jsonb_array_length(public.search_all('ready') -> 'clips'), 1, 'search finds a clip by its caption');
+select t.is(jsonb_array_length(public.search_all('#ya') -> 'tags'), 1, 'and a hashtag by its start');
+select t.is(public.search_all('@be') -> 'people' -> 0 ->> 'username', 'bea', 'and a person by the start of the username');
+select t.is(jsonb_array_length(public.search_all('%') -> 'clips'), 0, 'a wildcard is just a character');
+select t.is(jsonb_array_length(public.search_all('r') -> 'clips'), 0, 'one letter is not a search');
+select t.is(jsonb_array_length(public.discover_page() -> 'clips'), 1, 'Discover lists popular clips');
+select t.is(public.discover_page() -> 'creators' -> 0 ->> 'username', 'bea', 'and creators with clips');
+select t.is(public.discover_page() -> 'tags' -> 0 ->> 'tag', 'yap', 'and trending hashtags');
+
 -- Reports and moderation --------------------------------------------------------------------
 
 select t.login(:cal);
@@ -311,6 +333,8 @@ select t.anon();
 select t.is(jsonb_array_length(public.feed_page()), 0, 'a removed clip leaves the feed');
 select t.is((select count(*)::int from public.videos), 0, 'a removed clip is not readable');
 select t.is(jsonb_array_length(public.video_comments(:clip)), 0, 'its comments go with it');
+select t.is(jsonb_array_length(public.search_all('ready') -> 'clips'), 0, 'and it leaves search');
+select t.is(public.hashtag_page('yap') ->> 'clip_count', '0', 'and its hashtag page');
 select t.login(:bea);
 select t.is(public.video_by_id(:clip) ->> 'removed', 'true', 'the owner still sees it, marked removed');
 reset role;
@@ -374,6 +398,7 @@ select t.is(
       and p.proname not in (
         'is_admin', 'is_banned', 'session_status', 'username_available', 'username_is_valid', 'video_is_visible',
         'video_comments', 'feed_page', 'video_by_id', 'profile_page', 'record_view',
+        'hashtag_page', 'search_all', 'discover_page',
         'video_extension_for', 'clean_hashtags', 'encode_max_attempts', 'encode_stale_after')),
   '', 'visitors can call only the functions meant for them');
 

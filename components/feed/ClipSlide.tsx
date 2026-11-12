@@ -72,6 +72,7 @@ export function ClipSlide({
   const share = useFlag("share");
   const saves = useFlag("saves");
   const profiles = useFlag("profiles");
+  const hashtagPages = useFlag("hashtags");
   const gestures = useFlag("gestures");
   const scrub = useFlag("scrub");
   const toggleLike = useLike(signedIn);
@@ -127,7 +128,19 @@ export function ClipSlide({
             </div>
             {clip.caption && <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-[14px] leading-5">{clip.caption}</p>}
             {clip.hashtags.length > 0 && (
-              <p className="mt-1 line-clamp-1 text-[14px] font-medium leading-5">{clip.hashtags.map((t) => `#${t}`).join(" ")}</p>
+              <p className="pointer-events-auto mt-1 line-clamp-1 text-[14px] font-medium leading-5">
+                {clip.hashtags.map((t) =>
+                  hashtagPages ? (
+                    <Link key={t} href={`/tag/${t}`} className="mr-2 hover:underline" tabIndex={active ? 0 : -1}>
+                      #{t}
+                    </Link>
+                  ) : (
+                    <span key={t} className="mr-2">
+                      #{t}
+                    </span>
+                  ),
+                )}
+              </p>
             )}
           </div>
 

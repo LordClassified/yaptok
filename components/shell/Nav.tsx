@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { Avatar } from "@/components/Avatar";
 import { DbStatus } from "@/components/DbStatus";
-import { DarkThemeIcon, HomeIcon, LogoMark, PlusIcon, SettingsIcon, ShieldIcon, SignOutIcon, UserIcon } from "@/components/icons";
+import { DarkThemeIcon, HomeIcon, LogoMark, PlusIcon, SearchIcon, SettingsIcon, ShieldIcon, SignOutIcon, UserIcon } from "@/components/icons";
 import { useSession } from "@/lib/store/session";
 import { useUi } from "@/lib/store/ui";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +21,9 @@ function useNavItems(): Item[] {
   const items: Item[] = [
     { key: "home", href: "/", label: "For You", icon: <HomeIcon className="h-6 w-6" />, active: path === "/" || path === "/following" || path.startsWith("/v/") },
   ];
+  if (flags.search) {
+    items.push({ key: "search", href: "/search", label: "Discover", icon: <SearchIcon className="h-6 w-6" />, active: path === "/search" || path.startsWith("/tag/") });
+  }
   if (flags.upload) {
     items.push({
       key: "upload",

@@ -4,7 +4,7 @@ The goal: everything people expect from an app of this kind, finished to a
 high standard, with YapTok's own name, mark and look. One feature per session,
 each behind its flag in `/admin`.
 
-Status on 2026-11-12: **10 built, 9 partial, 13 missing** (32 items).
+Status on 2026-11-12: **13 built, 8 partial, 11 missing** (32 items).
 
 ## Checklist
 
@@ -30,9 +30,9 @@ Status on 2026-11-12: **10 built, 9 partial, 13 missing** (32 items).
 | 18 | Record in the app | partial | Written behind the `record` flag, never tried with a real camera |
 | 19 | Editor: trim, several clips, text, stickers, filters, speed, cover | partial | Only the cover frame |
 | 20 | Drafts | missing | |
-| 21 | Hashtags and hashtag pages | partial | Saved on upload, shown on the clip. No pages |
-| 22 | Search: clips, people, sounds, tags | missing | |
-| 23 | Discover and trending | missing | |
+| 21 | Hashtags and hashtag pages | built | `/tag/<name>`, linked from every clip (`hashtags` flag) |
+| 22 | Search: clips, people, sounds, tags | built | People, hashtags and clips (`search` flag). Simple matching; sounds when they exist |
+| 23 | Discover and trending | built | Trending hashtags, creators, popular clips this week (`discover` flag) |
 | 24 | Profiles | partial | Grid, bio, counts, follow, the owner's Liked and Saved tabs. No picture upload, links, follow lists |
 | 25 | Direct messages | missing | |
 | 26 | Activity inbox and notifications | missing | |

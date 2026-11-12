@@ -165,3 +165,26 @@ test("sound: only a remembered 'on' starts with sound", () => {
   assert.equal(readMutedPref("off"), true);
   assert.equal(readMutedPref(null), true);
 });
+
+import { cleanQuery, cleanTag, readCreators, readDiscover, readSearch, readTagPage, readTags } from "../lib/discover/types.ts";
+
+test("discover: what a person typed, and what an address means", () => {
+  assert.equal(cleanQuery("  cats   and\ndogs "), "cats and dogs");
+  assert.equal(cleanQuery(["x"]), "");
+  assert.equal(cleanQuery("x".repeat(80)).length, 60);
+  assert.equal(cleanTag("%23Cats"), "cats");
+  assert.equal(cleanTag("so cute"), null);
+  assert.equal(cleanTag("x".repeat(31)), null);
+});
+
+test("discover: answers are read defensively", () => {
+  assert.deepEqual(readTags([{ tag: "cats", clips: "3" }, { tag: "Bad Tag", clips: 1 }, null]), [{ tag: "cats", clips: 3 }]);
+  const people = readCreators([{ id: "11111111-2222-4333-8444-555555555555", username: "mira", display_name: "Mira", verified: true, follower_count: 12, video_count: 3 }, { username: "nobody" }]);
+  assert.equal(people.length, 1);
+  assert.equal(people[0].followerCount, 12);
+  assert.equal(readSearch(null), null, "null means the search flag is off");
+  assert.deepEqual(readSearch({ q: "x" }), { q: "x", people: [], tags: [], clips: [] });
+  assert.equal(readDiscover({ clips: [row(1)] }).clips.length, 1);
+  assert.equal(readTagPage({ tag: "cats", clip_count: 2, view_count: "40", videos: [row(1), row(2)] }).viewCount, 40);
+  assert.equal(readTagPage({}), null);
+});

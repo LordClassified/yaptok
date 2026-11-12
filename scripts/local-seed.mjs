@@ -31,6 +31,13 @@ const CLIPS = [
   { by: "spam_sam", caption: "FREE followers click the link in my bio!!!", tags: ["follow4follow"], colors: ["facc15", "ef4444", "facc15"], seconds: 6 },
   { by: "juno", caption: "Watering day, with commentary", tags: ["plants", "routine"], colors: ["84cc16", "14532d", "f0abfc"], seconds: 8 },
   { by: "desk_lab", caption: "Monitor arm: worth it?", tags: ["desksetup"], colors: ["8b5cf6", "111827", "f472b6"], seconds: 6 },
+  { by: "mira", caption: "Cinnamon rolls, the lazy way", tags: ["baking", "recipe"], colors: ["b45309", "fde68a", "7c2d12"], seconds: 7 },
+  { by: "juno", caption: "Repotting day went sideways", tags: ["plants", "fail"], colors: ["065f46", "fbbf24", "022c22"], seconds: 6 },
+  { by: "tobi", caption: "Learning to drop in. Slowly.", tags: ["skate", "progress"], colors: ["0ea5e9", "f97316", "0c4a6e"], seconds: 7 },
+  { by: "owner", caption: "Welcome to YapTok. Say hi in the comments", tags: ["yaptok", "welcome"], colors: ["7c3aed", "f59e0b", "0e0b14"], seconds: 6 },
+  { by: "desk_lab", caption: "The 5 dollar cable fix", tags: ["desksetup", "diy"], colors: ["14b8a6", "1e293b", "e2e8f0"], seconds: 6 },
+  { by: "mira", caption: "Rating my own bread, honestly", tags: ["baking", "sourdough"], colors: ["a16207", "fef3c7", "44403c"], seconds: 8 },
+  { by: "juno", caption: "Morning light, no talking", tags: ["plants", "routine"], colors: ["fda4af", "86efac", "fde047"], seconds: 6 },
 ];
 
 const COMMENTS = ["This is great", "How long did that take?", "Saving this for later", "ok this made my day", "Tutorial please", "The ending though", "Wait, do it again", "Instant follow"];
@@ -91,7 +98,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       await q("select set_config('request.jwt.claims', '', false)");
     }
   };
-  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves"]) {
+  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover"]) {
     await asOwner("select public.set_feature_flag($1, 'everyone')", [key]);
   }
   await asOwner("select public.set_feature_flag('record', 'test')");
@@ -112,7 +119,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
     run("ffmpeg", buildThumbnailArgs({ input: source, atSeconds: 1, output: join(dir, thumbnailName(0)) }));
     writeFileSync(join(dir, SPRITE_VTT), buildVtt(sprite, probe.durationS, SPRITE_IMAGE));
     run("rm", ["-f", source]);
-    const made = new Date(now - (CLIPS.length - n) * 1.4 * DAY);
+    const made = new Date(now - (CLIPS.length - n) * 0.8 * DAY);
     const top = renditions[renditions.length - 1];
     await q(
       `insert into public.videos (id, owner_id, caption, hashtags, visibility, status, duration_s, width, height, hls_key, thumbnail_url, renditions, created_at, published_at)
@@ -139,7 +146,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
     let total = 0;
     for (let d = 0; d < 14; d++) {
       const views = Math.max(0, Math.round((14 - d) * (3 + (n % 4)) * (1 + ((n * 5 + d * 3) % 7) / 6)) - (CLIPS.length - n) * 2);
-      if (views === 0 || d > (CLIPS.length - n) * 1.4) continue;
+      if (views === 0 || d > (CLIPS.length - n) * 0.8) continue;
       total += views;
       await q("insert into public.video_views (video_id, day, views) values ($1, current_date - $2::int, $3)", [clip.id, d, views]);
     }
