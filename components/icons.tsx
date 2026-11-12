@@ -62,6 +62,7 @@ export const ShareIcon = solid(
   <path d="M13.5 4.6c0-.9 1.1-1.3 1.7-.7l6.3 6.4c.4.4.4 1 0 1.4l-6.3 6.4c-.6.6-1.7.2-1.7-.7v-3c-4.3 0-7.4 1.2-9.7 4.3-.4.5-1.3.2-1.2-.5.7-5.5 4.2-9.9 10.9-10.6z" />,
 );
 export const BookmarkIcon = solid(<path d="M7 3h10a2 2 0 0 1 2 2v15.2c0 .8-.9 1.3-1.6.8L12 17.3 6.6 21c-.7.5-1.6 0-1.6-.8V5a2 2 0 0 1 2-2z" />);
+export const BellIcon = line(<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" />);
 export const VolumeIcon = line(
   <>
     <path d="M4 9.5h3l5-4v13l-5-4H4z" />

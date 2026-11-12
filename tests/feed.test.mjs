@@ -188,3 +188,21 @@ test("discover: answers are read defensively", () => {
   assert.equal(readTagPage({ tag: "cats", clip_count: 2, view_count: "40", videos: [row(1), row(2)] }).viewCount, 40);
   assert.equal(readTagPage({}), null);
 });
+
+import { noticeHref, noticeText, readNotices, unreadBadge } from "../lib/social/inbox.ts";
+
+test("inbox: notices are read, worded and linked", () => {
+  const actor = { id: "11111111-2222-4333-8444-555555555555", username: "cal", display_name: "Cal" };
+  const [like, follow] = readNotices([
+    { id: 2, kind: "like", created_at: "2026-11-12T10:00:00Z", unread: true, actor, video: { id: "v1", caption: "hi", thumbnail_url: null }, comment: null },
+    { id: 1, kind: "follow", unread: false, actor, video: null },
+    { id: 0, kind: "poke", actor },
+    { id: 3, kind: "like" },
+  ]);
+  assert.equal(noticeText(like.kind), "liked your clip");
+  assert.equal(noticeHref(like), "/v/v1");
+  assert.equal(noticeHref(follow), "/@cal");
+  assert.equal(like.unread, true);
+  assert.equal(readNotices([{ kind: "like", actor }, null]).length, 1);
+  assert.deepEqual([0, 3, 9, 10, 250].map(unreadBadge), [null, "3", "9", "9+", "9+"]);
+});

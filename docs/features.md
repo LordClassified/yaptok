@@ -34,6 +34,7 @@ from `lib/store/session.ts` in the browser.
 | `gestures` | Double tap to like, hold to pause, hold the right side for double speed | off |
 | `scrub` | Drag the bar at the bottom of a clip | off |
 | `following` | The Following feed at `/following` and the switch on top of the feed | off |
+| `inbox` | The Inbox page: likes, comments, replies, new followers, with a dot for what is new | off |
 | `comment_threads` | Reply to a comment and like comments | off |
 | `follow_lists` | Followers and Following on a profile open the lists | off |
 | `saves` | The bookmark on a clip, and the Liked and Saved tabs on your own profile | off |

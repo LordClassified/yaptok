@@ -17,6 +17,9 @@ type UiState = {
   /** The browser refused sound without a tap: mute for now, keep the remembered choice. */
   soundBlocked: () => void;
   /** A short message at the bottom of the screen, gone after a few seconds. */
+  /** Unread things in the inbox, for the dot in the navigation. */
+  unread: number;
+  setUnread: (unread: number) => void;
   toast: string | null;
   showToast: (text: string | null) => void;
 };
@@ -45,6 +48,8 @@ export const useUi = create<UiState>((set) => ({
     }
   },
   soundBlocked: () => set({ muted: true }),
+  unread: 0,
+  setUnread: (unread) => set({ unread }),
   toast: null,
   showToast: (toast) => set({ toast }),
 }));

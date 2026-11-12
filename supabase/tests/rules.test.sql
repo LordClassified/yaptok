@@ -309,6 +309,31 @@ select t.is(jsonb_array_length(public.profile_page('bea') -> 'videos'), 1, 'a vi
 select t.login(:bea);
 select t.is(jsonb_array_length(public.profile_page('bea') -> 'videos'), 2, 'the owner also sees their failed clip');
 
+-- The inbox -----------------------------------------------------------------------------------
+
+select t.login(:bea);
+select t.is(public.inbox_unread(), 0, 'nothing is written while the inbox flag is off');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'inbox';
+select t.login(:cal);
+select public.toggle_like(:clip, false);
+select public.toggle_like(:clip, true);
+select public.toggle_like(:clip, false);
+select public.toggle_like(:clip, true);
+select public.add_comment(:clip, 'one more');
+select t.is(public.inbox_unread(), 0, 'your own actions never notify you');
+select t.login(:bea);
+select t.is(public.inbox_unread(), 2, 'a like and a comment notify the creator, the same like only once');
+select t.is(public.inbox_page() -> 0 ->> 'kind', 'comment', 'newest first');
+select t.is(public.inbox_page() -> 0 -> 'actor' ->> 'username', 'cal', 'with who did it');
+select t.is(t.err($$select * from public.notifications$$), 'permission denied for table notifications', 'notifications are not readable directly');
+select public.inbox_mark_read();
+select t.is(public.inbox_unread(), 0, 'marking read clears the count');
+select t.login(:cal);
+select t.is(jsonb_array_length(public.inbox_page()), 0, 'nobody sees someone else''s inbox');
+select t.anon();
+select t.is(t.err($$select public.inbox_page()$$), 'permission denied for function inbox_page', 'visitors have no inbox');
+
 -- Hashtags, search, Discover ----------------------------------------------------------------
 
 select t.anon();

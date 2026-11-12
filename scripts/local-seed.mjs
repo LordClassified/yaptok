@@ -98,7 +98,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       await q("select set_config('request.jwt.claims', '', false)");
     }
   };
-  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover", "follow_lists", "comment_threads"]) {
+  for (const key of ["inbox", "feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover", "follow_lists", "comment_threads"]) {
     await asOwner("select public.set_feature_flag($1, 'everyone')", [key]);
   }
   await asOwner("select public.set_feature_flag('record', 'test')");
