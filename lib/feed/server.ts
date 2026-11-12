@@ -20,10 +20,13 @@ export type FeedState =
   | { kind: "off" }
   /** The feed could not be read: the migrations are not applied yet. */
   | { kind: "not-set-up" }
-  | { kind: "ready"; clips: Clip[]; mediaBase: string | null; signedIn: boolean };
+  | { kind: "ready"; clips: Clip[]; mediaBase: string | null; signedIn: boolean; followingOn: boolean };
 
-/** The first page of the For You feed. Reads the request, so call it inside <Suspense>. */
-export async function feedState(first?: string): Promise<FeedState> {
+/** Which feed: everyone's clips, or the clips of the creators the person follows. */
+export type FeedSource = "feed_page" | "following_page";
+
+/** The first page of a feed. Reads the request, so call it inside <Suspense>. */
+export async function feedState(first?: string, source: FeedSource = "feed_page"): Promise<FeedState> {
   await connection();
   if (!readSupabaseConfig()) return { kind: "no-db" };
   const user = await getCurrentUser();
@@ -32,7 +35,8 @@ export async function feedState(first?: string): Promise<FeedState> {
   if (!supabase) return { kind: "no-db" };
 
   const [{ data, error }, one] = await Promise.all([
-    supabase.rpc("feed_page", { p_limit: FEED_PAGE }),
+    // A signed out visitor has no Following feed: an empty page, and the page says why.
+    source === "following_page" && !user ? Promise.resolve({ data: [], error: null }) : supabase.rpc(source, { p_limit: FEED_PAGE }),
     first ? supabase.rpc("video_by_id", { p_video: first }) : Promise.resolve({ data: null }),
   ]);
   if (error) return { kind: "not-set-up" };
@@ -40,7 +44,8 @@ export async function feedState(first?: string): Promise<FeedState> {
   // /v/<id>: that clip first, then the feed without it.
   const lead = readClip(one.data);
   if (lead) clips = [lead, ...clips.filter((c) => c.id !== lead.id)];
-  return { kind: "ready", clips, mediaBase: mediaBase(), signedIn: user !== null };
+  const followingOn = (await flagOn("following", user?.id ?? null)) && (await flagOn("follows", user?.id ?? null));
+  return { kind: "ready", clips, mediaBase: mediaBase(), signedIn: user !== null, followingOn };
 }
 
 export type ClipState =

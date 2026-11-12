@@ -15,6 +15,7 @@ in order, lowest number first.
 | `007_feed.sql` | The For You feed, creator pages, view and share counts |
 | `008_moderation.sql` | Reports, and the admin actions: remove, restore, ban, unban, verify, invite |
 | `009_admin_panel.sql` | What the pages under `/admin` read: lists, the log, the stats |
+| `011_following.sql` | The Following feed |
 | `010_player.sql` | Flags for the player's touch controls (double tap, hold, scrub bar) |
 
 ## On a new Supabase project

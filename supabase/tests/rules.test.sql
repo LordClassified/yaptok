@@ -240,6 +240,16 @@ select t.is(public.feed_page() -> 0 ->> 'liked', 'true', 'the feed knows what yo
 select t.is(t.err(format($$insert into public.likes (video_id, user_id) values (%L, auth.uid())$$, :clip)), 'permission denied for table likes', 'likes only go through toggle_like');
 select t.is(public.toggle_follow(:bea) ->> 'follower_count', '1', 'a follow counts');
 select t.is(t.err($$select public.toggle_follow(auth.uid())$$), 'self', 'nobody follows themselves');
+select t.is(jsonb_array_length(public.following_page()), 0, 'the Following feed is empty while its flag is off');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'following';
+select t.login(:cal);
+select t.is(jsonb_array_length(public.following_page()), 1, 'the Following feed has the clips of people you follow');
+select t.login(:owner);
+select t.is(jsonb_array_length(public.following_page()), 0, 'and nothing from people you do not follow');
+select t.anon();
+select t.is(t.err($$select public.following_page()$$), 'permission denied for function following_page', 'visitors have no Following feed');
+select t.login(:cal);
 select t.is(public.add_comment(:clip, E'  nice\nclip  ') ->> 'body', 'nice clip', 'a comment is trimmed to one line');
 select t.is(t.err(format($$select public.add_comment(%L, '')$$, :clip)), 'comment_invalid', 'an empty comment is refused');
 select t.is(jsonb_array_length(public.video_comments(:clip)), 1, 'the comment is listed');

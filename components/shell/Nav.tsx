@@ -19,7 +19,7 @@ function useNavItems(): Item[] {
   const flags = useSession((s) => s.flags);
   const admin = useSession((s) => s.admin);
   const items: Item[] = [
-    { key: "home", href: "/", label: "For You", icon: <HomeIcon className="h-6 w-6" />, active: path === "/" || path.startsWith("/v/") },
+    { key: "home", href: "/", label: "For You", icon: <HomeIcon className="h-6 w-6" />, active: path === "/" || path === "/following" || path.startsWith("/v/") },
   ];
   if (flags.upload) {
     items.push({

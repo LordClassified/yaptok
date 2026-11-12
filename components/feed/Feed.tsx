@@ -27,7 +27,18 @@ import { useLike } from "./useSocial";
  * keys (or j and k), or the two buttons on a desk. See lib/feed/nav.ts for
  * every rule; this component only connects them to the page.
  */
-export function Feed({ initial, mediaBase, signedIn }: { initial: Clip[]; mediaBase: string | null; signedIn: boolean }) {
+export function Feed({
+  initial,
+  mediaBase,
+  signedIn,
+  source = "feed_page",
+}: {
+  initial: Clip[];
+  mediaBase: string | null;
+  signedIn: boolean;
+  /** The database function the next pages come from. */
+  source?: "feed_page" | "following_page";
+}) {
   const clips = useFeed((s) => s.clips);
   const index = useFeed((s) => s.index);
   const hasMore = useFeed((s) => s.hasMore);
@@ -108,11 +119,11 @@ export function Feed({ initial, mediaBase, signedIn }: { initial: Clip[]; mediaB
     const cursor = feedCursor(clips);
     if (!cursor) return;
     useFeed.getState().setLoading(true);
-    void callRpc("feed_page", { p_limit: FEED_PAGE, p_before: cursor.before, p_before_id: cursor.beforeId }).then((res) => {
+    void callRpc(source, { p_limit: FEED_PAGE, p_before: cursor.before, p_before_id: cursor.beforeId }).then((res) => {
       const more = res.ok ? readClips(res.data) : [];
       useFeed.getState().addPage(more, more.length >= FEED_PAGE);
     });
-  }, [ready, index, clips, hasMore, loading]);
+  }, [ready, index, clips, hasMore, loading, source]);
 
   const blocked = sheet !== null;
 
