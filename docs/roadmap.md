@@ -20,7 +20,7 @@ Status on 2026-11-12: **13 built, 8 partial, 11 missing** (32 items). Branches, 
 | 8 | Scrub bar | built | `scrub` flag |
 | 9 | Captions on clips | missing | Needs speech to text, or a caption file from the creator |
 | 10 | Like | built | Instant, put back if the database says no |
-| 11 | Comments | partial | One level, delete, report. No replies, comment likes, pins or mentions |
+| 11 | Comments | partial | Replies (one level), comment likes, delete, report (`comment_threads` flag). No pins or mentions |
 | 12 | Share | partial | Copy link and the phone share sheet. No repost |
 | 13 | Save to collections | partial | Save a clip and find it in a private Saved tab (`saves` flag). No named collections |
 | 14 | Repost | missing | |

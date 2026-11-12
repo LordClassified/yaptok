@@ -253,6 +253,21 @@ select t.login(:cal);
 select t.is(public.add_comment(:clip, E'  nice\nclip  ') ->> 'body', 'nice clip', 'a comment is trimmed to one line');
 select t.is(t.err(format($$select public.add_comment(%L, '')$$, :clip)), 'comment_invalid', 'an empty comment is refused');
 select t.is(jsonb_array_length(public.video_comments(:clip)), 1, 'the comment is listed');
+create temp table first_comment as select (public.video_comments(:clip) -> 0 ->> 'id')::uuid as id;
+grant select on first_comment to public;
+select t.is(t.err(format($$select public.add_comment(%L, 'a reply', %L)$$, :clip, (select id from first_comment))), 'replies_off', 'replies are off until their flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'comment_threads';
+select t.login(:bea);
+select t.is(public.add_comment(:clip, 'thank you!', (select id from first_comment)) ->> 'parent_id', (select id::text from first_comment), 'a reply hangs under its comment');
+select t.is(public.toggle_comment_like((select id from first_comment)) ->> 'like_count', '1', 'a comment like counts');
+select t.is(t.err(format($$select public.add_comment(%L, 'x', gen_random_uuid())$$, :clip)), 'not_found', 'a reply needs a real comment on the same clip');
+select t.login(:cal);
+select t.is(jsonb_array_length(public.video_comments(:clip)), 1, 'replies are not in the top level list');
+select t.is(public.video_comments(:clip) -> 0 ->> 'reply_count', '1', 'the comment counts its replies');
+select t.is(public.video_comments(:clip) -> 0 ->> 'liked', 'false', 'someone else''s like is not yours');
+select t.is(public.comment_replies((select id from first_comment)) -> 0 ->> 'body', 'thank you!', 'the replies are listed');
+select t.is(t.err($$insert into public.comment_likes (comment_id, user_id) select id, auth.uid() from first_comment$$), 'permission denied for table comment_likes', 'comment likes only go through the function');
 select t.is(public.record_view(:clip), true, 'a signed in view counts');
 select t.is(public.record_share(:clip), 1, 'a share counts');
 select t.is(t.err(format($$select public.toggle_save(%L)$$, :clip)), 'saves_off', 'saving is off until its flag is on');
@@ -271,7 +286,7 @@ select t.anon();
 select t.is(t.err($$select public.my_clips('saved')$$), 'permission denied for function my_clips', 'visitors have no saved list');
 select t.login(:cal);
 reset role;
-select t.is((select comment_count from public.videos where id = :clip), 1, 'the clip counts its comments');
+select t.is((select comment_count from public.videos where id = :clip), 2, 'the clip counts its comments and replies');
 select t.is((select view_count::int from public.videos where id = :clip), 2, 'the clip counts its views');
 select t.is((select like_count from public.profiles where username = 'bea'), 1, 'the profile counts likes on its clips');
 
@@ -408,7 +423,7 @@ select t.is(
       and p.proname not in (
         'is_admin', 'is_banned', 'session_status', 'username_available', 'username_is_valid', 'video_is_visible',
         'video_comments', 'feed_page', 'video_by_id', 'profile_page', 'record_view',
-        'hashtag_page', 'search_all', 'discover_page', 'follow_list',
+        'hashtag_page', 'search_all', 'discover_page', 'follow_list', 'comment_replies',
         'video_extension_for', 'clean_hashtags', 'encode_max_attempts', 'encode_stale_after')),
   '', 'visitors can call only the functions meant for them');
 

@@ -98,7 +98,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       await q("select set_config('request.jwt.claims', '', false)");
     }
   };
-  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover", "follow_lists"]) {
+  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover", "follow_lists", "comment_threads"]) {
     await asOwner("select public.set_feature_flag($1, 'everyone')", [key]);
   }
   await asOwner("select public.set_feature_flag('record', 'test')");
@@ -151,6 +151,15 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       await q("insert into public.video_views (video_id, day, views) values ($1, current_date - $2::int, $3)", [clip.id, d, views]);
     }
     await q("update public.videos set view_count = $2, share_count = $3 where id = $1", [clip.id, total, n % 5]);
+  }
+
+  // A few replies and comment likes, so threads have something in them.
+  const { rows: tops } = await q("select id, video_id, author_id from public.comments where parent_id is null order by created_at limit 14");
+  const REPLIES = ["Right?", "Thank you!", "About two hours", "Same here", "Coming soon"];
+  for (const [i, c] of tops.entries()) {
+    const others = viewers.filter((u) => ids[u] !== c.author_id);
+    if (i % 2 === 0) await q("insert into public.comments (video_id, author_id, body, parent_id) values ($1, $2, $3, $4)", [c.video_id, ids[others[i % others.length]], REPLIES[i % REPLIES.length], c.id]);
+    for (let k = 0; k < (i * 3) % 5; k++) await q("insert into public.comment_likes (comment_id, user_id) values ($1, $2) on conflict do nothing", [c.id, ids[others[(i + k) % others.length]]]);
   }
 
   // Something for the moderation queue and the log.
