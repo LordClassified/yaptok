@@ -22,7 +22,7 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
             {/* A full page load on purpose: the root layout is what failed. */}
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/" className="btn-primary">
-              Back to the feed
+              Back home
             </a>
           </div>
         </main>

@@ -85,7 +85,7 @@ for (const path of ["/admin", "/admin/settings", "/admin/reports", "/admin/video
 }
 
 const nowhere = await get("/this-page-does-not-exist");
-check("an unknown page is a 404 with the way back", nowhere.status === 404 && nowhere.text.includes("Back to the feed"), `status ${nowhere.status}`);
+check("an unknown page is a 404 with the way back", nowhere.status === 404 && nowhere.text.includes("Back home"), `status ${nowhere.status}`);
 const health = await get("/api/health");
 check("/api/health answers 200", health.status === 200, `status ${health.status}`);
 const version = await get("/api/version");

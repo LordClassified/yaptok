@@ -67,7 +67,11 @@ or pauses, `m` is sound, `l` likes, `c` opens the comments.
 - A view counts after two seconds on a clip, once per viewer, clip and day.
 - The next page of eight clips is fetched three clips before the end.
 - When there is nothing to play, the same stage says why: database not
-  connected, feed switched off, or no clips yet.
+  connected or no clips yet.
+
+A feature that is off leaves no trace for visitors: its link is not in the
+navigation, its page is "page not found", and with the feed off the home page
+is the mark alone.
 
 With the `following` flag a switch sits on top of the feed: For You, or
 Following (`/following`), which is the same player over the clips of the
