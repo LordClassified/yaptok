@@ -81,6 +81,17 @@ function fail(status: number, code: string, limits?: UploadLimits): HandlerResul
   return { status, body: { error: code, message: uploadErrorText(code, limits) } };
 }
 
+/**
+ * Storage said no. The answer carries the name of the storage error (like
+ * AccessDenied or NoSuchBucket, never a key) so the owner can see which
+ * setting is wrong without opening the server log.
+ */
+function storageFail(err: unknown): HandlerResult {
+  const name = err instanceof Error && /^[A-Za-z]{3,60}$/.test(err.name) && err.name !== "Error" ? err.name : null;
+  const text = uploadErrorText("storage_error");
+  return { status: 502, body: { error: "storage_error", message: name ? `${text} (${name})` : text } };
+}
+
 /** HTTP status for an error code from the RPCs. */
 export function statusForCode(code: string): number {
   switch (code) {
@@ -166,9 +177,9 @@ export async function signUpload(rawBody: unknown, ctx: UploadContext): Promise<
   let uploadId: string;
   try {
     uploadId = await g.storage.createMultipart(key, mime);
-  } catch {
+  } catch (err) {
     await g.db.abandonUpload(videoId, "storage error");
-    return fail(502, "storage_error");
+    return storageFail(err);
   }
 
   const plan = planParts(bytes);
@@ -240,8 +251,8 @@ export async function completeUpload(rawBody: unknown, ctx: UploadContext): Prom
 
   try {
     await g.storage.completeMultipart(video.sourceKey, uploadId, parts);
-  } catch {
-    return fail(502, "storage_error");
+  } catch (err) {
+    return storageFail(err);
   }
 
   const size = await g.storage.objectSize(video.sourceKey).catch(() => null);

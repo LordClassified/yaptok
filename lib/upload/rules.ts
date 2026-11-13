@@ -201,6 +201,12 @@ export function uploadErrorText(code: string | null | undefined, limits: UploadL
       return "This account has been banned.";
     case "no_db":
       return "database not connected";
+    case "storage_error":
+      return "The file storage refused the upload. Check the R2 settings on the server: account id, bucket and both keys.";
+    case "db_error":
+      return "The database refused the upload. Check that every file in supabase/migrations has been run.";
+    case "not_uploading":
+      return "This upload was already finished or cancelled. Start again.";
     default:
       return "Something went wrong. Try again.";
   }
