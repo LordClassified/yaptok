@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Uploader } from "@/components/upload/Uploader";
 import { uploadWhoText } from "@/lib/site/settings-core";
@@ -13,7 +13,7 @@ async function UploadGate() {
     return <Uploader settings={state.settings} recordOn={false} blocked="database not connected. This is a preview of the upload form: posting needs Supabase and storage." />;
   }
   if (state.kind === "off") {
-    return <p className="py-16 text-center text-[14px] text-text-2">Uploads are switched off right now. Check back soon.</p>;
+    notFound();
   }
   if (state.kind === "signed-out") redirect("/login?next=/upload");
   if (state.kind === "not-onboarded") redirect("/welcome?next=/upload");

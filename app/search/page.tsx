@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { DbNotConnected } from "@/components/auth/AuthCard";
 import { SearchView } from "@/components/discover/SearchView";
@@ -14,7 +15,7 @@ async function SearchGate({ searchParams }: { searchParams: PageProps<"/search">
       </div>
     );
   }
-  if (state.kind === "off") return <p className="px-4 py-16 text-center text-[14px] text-text-2">Search is switched off right now.</p>;
+  if (state.kind === "off") notFound();
   return <SearchView q={state.q} results={state.results} discover={state.discover} mediaBase={state.mediaBase} tagsOn={state.tagsOn} />;
 }
 

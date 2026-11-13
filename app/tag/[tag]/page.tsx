@@ -23,7 +23,7 @@ async function TagGate({ params }: { params: PageProps<"/tag/[tag]">["params"] }
       </div>
     );
   }
-  if (state.kind === "off") return <p className="px-4 py-16 text-center text-[14px] text-text-2">Hashtag pages are switched off right now.</p>;
+  if (state.kind === "off") notFound();
   const { page } = state;
   return (
     <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-6" data-tag={page.tag}>

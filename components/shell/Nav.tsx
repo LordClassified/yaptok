@@ -34,9 +34,11 @@ function useNavItems(): Item[] {
   const flags = useSession((s) => s.flags);
   const admin = useSession((s) => s.admin);
   const unread = useUnread(user !== null && flags.inbox === true, flags.messages === true);
-  const items: Item[] = [
-    { key: "home", href: "/", label: "For You", icon: <HomeIcon className="h-6 w-6" />, active: path === "/" || path === "/following" || path.startsWith("/v/") },
-  ];
+  // A feature that is off has no link: the navigation only lists what is switched on.
+  const items: Item[] = [];
+  if (flags.feed) {
+    items.push({ key: "home", href: "/", label: "For You", icon: <HomeIcon className="h-6 w-6" />, active: path === "/" || path === "/following" || path.startsWith("/v/") });
+  }
   if (flags.search) {
     items.push({ key: "search", href: "/search", label: "Discover", icon: <SearchIcon className="h-6 w-6" />, active: path === "/search" || path.startsWith("/tag/") });
   }

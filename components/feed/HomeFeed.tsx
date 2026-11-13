@@ -21,11 +21,10 @@ export async function HomeFeed({ first, source = "feed_page" }: { first?: string
     );
   }
   if (state.kind === "off") {
-    return (
-      <FeedNotice state="off" title="The feed is switched off right now.">
-        Check back soon.
-      </FeedNotice>
-    );
+    // An off feature leaves no trace: a clip or Following address is not found,
+    // and the home page is the bare mark with no words about a feed.
+    if (first || source === "following_page") notFound();
+    return <FeedNotice state="off" />;
   }
   if (state.kind === "not-set-up") {
     return (

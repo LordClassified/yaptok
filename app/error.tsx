@@ -17,7 +17,7 @@ export default function Error({ error, retry }: { error: unknown; retry: () => v
           Try again
         </button>
         <Link href="/" className="btn-primary">
-          Back to the feed
+          Back home
         </Link>
       </div>
     </div>

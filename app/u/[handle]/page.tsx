@@ -26,9 +26,7 @@ async function ProfileGate({ params, searchParams }: Pick<PageProps<"/u/[handle]
       </div>
     );
   }
-  if (state.kind === "off") {
-    return <p className="px-4 py-16 text-center text-[14px] text-text-2">Creator pages are switched off right now.</p>;
-  }
+  if (state.kind === "off") notFound();
   return (
     <ProfileView
       profile={state.profile}
