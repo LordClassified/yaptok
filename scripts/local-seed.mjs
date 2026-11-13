@@ -31,6 +31,13 @@ const CLIPS = [
   { by: "spam_sam", caption: "FREE followers click the link in my bio!!!", tags: ["follow4follow"], colors: ["facc15", "ef4444", "facc15"], seconds: 6 },
   { by: "juno", caption: "Watering day, with commentary", tags: ["plants", "routine"], colors: ["84cc16", "14532d", "f0abfc"], seconds: 8 },
   { by: "desk_lab", caption: "Monitor arm: worth it?", tags: ["desksetup"], colors: ["8b5cf6", "111827", "f472b6"], seconds: 6 },
+  { by: "mira", caption: "Cinnamon rolls, the lazy way", tags: ["baking", "recipe"], colors: ["b45309", "fde68a", "7c2d12"], seconds: 7 },
+  { by: "juno", caption: "Repotting day went sideways", tags: ["plants", "fail"], colors: ["065f46", "fbbf24", "022c22"], seconds: 6 },
+  { by: "tobi", caption: "Learning to drop in. Slowly.", tags: ["skate", "progress"], colors: ["0ea5e9", "f97316", "0c4a6e"], seconds: 7 },
+  { by: "owner", caption: "Welcome to YapTok. Say hi in the comments", tags: ["yaptok", "welcome"], colors: ["fc6a39", "fbbf24", "0f0d0c"], seconds: 6 },
+  { by: "desk_lab", caption: "The 5 dollar cable fix", tags: ["desksetup", "diy"], colors: ["14b8a6", "1e293b", "e2e8f0"], seconds: 6 },
+  { by: "mira", caption: "Rating my own bread, honestly", tags: ["baking", "sourdough"], colors: ["a16207", "fef3c7", "44403c"], seconds: 8 },
+  { by: "juno", caption: "Morning light, no talking", tags: ["plants", "routine"], colors: ["fda4af", "86efac", "fde047"], seconds: 6 },
 ];
 
 const COMMENTS = ["This is great", "How long did that take?", "Saving this for later", "ok this made my day", "Tutorial please", "The ending though", "Wait, do it again", "Instant follow"];
@@ -91,7 +98,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       await q("select set_config('request.jwt.claims', '', false)");
     }
   };
-  for (const key of ["feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing"]) {
+  for (const key of ["messages", "inbox", "feed", "profiles", "likes", "comments", "follows", "share", "reports", "upload", "processing", "gestures", "scrub", "following", "saves", "hashtags", "search", "discover", "follow_lists", "comment_threads"]) {
     await asOwner("select public.set_feature_flag($1, 'everyone')", [key]);
   }
   await asOwner("select public.set_feature_flag('record', 'test')");
@@ -112,7 +119,7 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
     run("ffmpeg", buildThumbnailArgs({ input: source, atSeconds: 1, output: join(dir, thumbnailName(0)) }));
     writeFileSync(join(dir, SPRITE_VTT), buildVtt(sprite, probe.durationS, SPRITE_IMAGE));
     run("rm", ["-f", source]);
-    const made = new Date(now - (CLIPS.length - n) * 1.4 * DAY);
+    const made = new Date(now - (CLIPS.length - n) * 0.8 * DAY);
     const top = renditions[renditions.length - 1];
     await q(
       `insert into public.videos (id, owner_id, caption, hashtags, visibility, status, duration_s, width, height, hls_key, thumbnail_url, renditions, created_at, published_at)
@@ -133,17 +140,35 @@ export async function seed({ adminQuery, hashPassword, objectsDir, mediaBase }) 
       if ((n + v) % 6 === 0) {
         await q("insert into public.comments (video_id, author_id, body, created_at) values ($1, $2, $3, $4)", [clip.id, ids[viewer], COMMENTS[(n + v) % COMMENTS.length], new Date(now - ((n + v) % 9) * 3600000)]);
       }
+      if ((n * 3 + v) % 7 === 0) await q("insert into public.saves (video_id, user_id) values ($1, $2) on conflict do nothing", [clip.id, ids[viewer]]);
       if ((n + v) % 4 === 0) await q("insert into public.follows (follower_id, followee_id) values ($1, $2) on conflict do nothing", [ids[viewer], ids[clip.by]]);
     }
     let total = 0;
     for (let d = 0; d < 14; d++) {
       const views = Math.max(0, Math.round((14 - d) * (3 + (n % 4)) * (1 + ((n * 5 + d * 3) % 7) / 6)) - (CLIPS.length - n) * 2);
-      if (views === 0 || d > (CLIPS.length - n) * 1.4) continue;
+      if (views === 0 || d > (CLIPS.length - n) * 0.8) continue;
       total += views;
       await q("insert into public.video_views (video_id, day, views) values ($1, current_date - $2::int, $3)", [clip.id, d, views]);
     }
     await q("update public.videos set view_count = $2, share_count = $3 where id = $1", [clip.id, total, n % 5]);
   }
+
+  // A few replies and comment likes, so threads have something in them.
+  const { rows: tops } = await q("select id, video_id, author_id from public.comments where parent_id is null order by created_at limit 14");
+  const REPLIES = ["Right?", "Thank you!", "About two hours", "Same here", "Coming soon"];
+  for (const [i, c] of tops.entries()) {
+    const others = viewers.filter((u) => ids[u] !== c.author_id);
+    if (i % 2 === 0) await q("insert into public.comments (video_id, author_id, body, parent_id) values ($1, $2, $3, $4)", [c.video_id, ids[others[i % others.length]], REPLIES[i % REPLIES.length], c.id]);
+    for (let k = 0; k < (i * 3) % 5; k++) await q("insert into public.comment_likes (comment_id, user_id) values ($1, $2) on conflict do nothing", [c.id, ids[others[(i + k) % others.length]]]);
+  }
+
+  // A couple of conversations for the Messages page.
+  const dm = (from, to, body, video = null) => q("insert into public.messages (sender_id, receiver_id, body, video_id) values ($1, $2, $3, $4)", [ids[from], ids[to], body, video]);
+  await dm("mira", "owner", "Hi! Love what you are building here");
+  await dm("owner", "mira", "Thank you! Your bread clips are the best thing on the feed");
+  await dm("mira", "owner", "Look at this one", CLIPS[1].id);
+  await dm("tobi", "owner", "Can I get verified?");
+  await dm("juno", "mira", "", CLIPS[3].id);
 
   // Something for the moderation queue and the log.
   const spam = CLIPS.find((c) => c.by === "spam_sam");

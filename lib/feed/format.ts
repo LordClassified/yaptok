@@ -54,6 +54,11 @@ export function socialErrorText(code: string | null | undefined): string {
       return "Comments are switched off right now.";
     case "likes_off":
     case "follows_off":
+    case "message_invalid":
+      return "Write a message of 1 to 1000 characters.";
+    case "messages_off":
+    case "replies_off":
+    case "saves_off":
     case "reports_off":
       return "This is switched off right now.";
     case "comment_invalid":

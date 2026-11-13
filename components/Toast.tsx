@@ -15,7 +15,7 @@ export function Toast() {
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--bottom-bar)+16px)] z-[70] flex justify-center px-4">
       {toast && (
-        <p className="rounded-full bg-[#221c2e] px-4 py-2 text-[14px] text-white shadow-lg" data-toast>
+        <p className="rounded-full bg-[#2e2723] px-4 py-2 text-[14px] text-white shadow-lg" data-toast>
           {toast}
         </p>
       )}

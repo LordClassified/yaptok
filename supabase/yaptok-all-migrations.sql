@@ -1,4 +1,4 @@
--- YapTok: every migration in supabase/migrations, in order (10 files).
+-- YapTok: every migration in supabase/migrations, in order (18 files).
 
 -- ===== 000_init.sql =====
 -- 000_init.sql
@@ -2972,4 +2972,1241 @@ grant execute on function public.admin_videos(text, text, int) to authenticated;
 grant execute on function public.admin_accounts(text, text, int) to authenticated;
 grant execute on function public.admin_log_page(int, bigint) to authenticated;
 grant execute on function public.admin_stats(int) to authenticated;
+
+-- ===== 010_player.sql =====
+-- 010_player.sql
+-- Flags for the player's touch controls. Nothing else changes in the
+-- database: these features live in the browser (lib/feed/gestures.ts).
+--
+-- Run after 009_admin_panel.sql. Safe to run more than once.
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('gestures', 'Player gestures', 'Double tap a clip to like it, hold a finger on it to pause, hold the right side to play at double speed.', 'off'),
+  ('scrub', 'Scrub bar', 'The bar at the bottom of a clip can be dragged to move through it.', 'off')
+on conflict (key) do nothing;
+
+-- ===== 011_following.sql =====
+-- 011_following.sql
+-- The Following feed: clips from the creators the person follows, newest
+-- first. Same shape and paging as feed_page() in 007_feed.sql.
+--
+-- Run after 010_player.sql. Safe to run more than once.
+
+-- One page of the Following feed. Empty for a signed out visitor, and while
+-- the following flag (or the feed flag) is off for the caller.
+create or replace function public.following_page(
+  p_limit int default 8,
+  p_before timestamptz default null,
+  p_before_id uuid default null
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(public.video_card(v, (select auth.uid())) order by v.published_at desc, v.id desc), '[]'::jsonb)
+  from (
+    select x.*
+    from public.videos x
+    join public.profiles p on p.id = x.owner_id
+    join public.follows f on f.followee_id = x.owner_id and f.follower_id = (select auth.uid())
+    where x.visibility = 'public' and x.status = 'ready' and x.removed_at is null
+      and p.banned_at is null
+      and public.flag_on('feed', (select auth.uid()))
+      and public.flag_on('following', (select auth.uid()))
+      and (p_before is null or (x.published_at, x.id) < (p_before, coalesce(p_before_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)))
+    order by x.published_at desc, x.id desc
+    limit least(greatest(coalesce(p_limit, 8), 1), 20)
+  ) v;
+$$;
+
+revoke execute on function public.following_page(int, timestamptz, uuid) from public, anon;
+grant execute on function public.following_page(int, timestamptz, uuid) to authenticated;
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('following', 'Following feed', 'A second feed at /following with clips from the creators you follow, and the For You / Following switch on top of the feed. Needs Follows.', 'off')
+on conflict (key) do nothing;
+
+-- ===== 012_saves.sql =====
+-- 012_saves.sql
+-- Saving clips for later, and the owner's Liked and Saved lists.
+--
+-- - saves is private: you can read your own, nobody else can.
+-- - toggle_save() is the only way to write it, like toggle_like() in 006.
+-- - Every clip card now also says whether the person asking saved it, and how
+--   many people did (video_card is replaced with the two extra fields).
+-- - my_clips('liked' | 'saved') lists the caller's own liked or saved clips,
+--   most recent first, for the two extra tabs on their profile. Clips that
+--   were removed, made private or belong to a banned creator drop out.
+--
+-- Run after 011_following.sql. Safe to run more than once.
+
+alter table public.videos add column if not exists save_count int not null default 0;
+
+create table if not exists public.saves (
+  video_id uuid not null references public.videos (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (video_id, user_id)
+);
+
+create index if not exists saves_user_idx on public.saves (user_id, created_at desc);
+
+alter table public.saves enable row level security;
+
+drop policy if exists "people read their own saves" on public.saves;
+create policy "people read their own saves"
+  on public.saves
+  for select
+  to authenticated
+  using ((select auth.uid()) = user_id);
+
+revoke all on public.saves from anon, authenticated;
+grant select on public.saves to authenticated;
+
+create or replace function public.saves_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.videos v
+     set save_count = greatest(v.save_count + case when tg_op = 'INSERT' then 1 else -1 end, 0)
+   where v.id = coalesce(new.video_id, old.video_id);
+  return null;
+end;
+$$;
+
+drop trigger if exists saves_count on public.saves;
+create trigger saves_count
+  after insert or delete on public.saves
+  for each row execute function public.saves_count();
+
+-- Saves a clip or takes it out again. Answers { saved, save_count }.
+-- Errors: not_signed_in, saves_off, banned, not_found
+create or replace function public.toggle_save(p_video uuid, p_on boolean default null)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  has boolean;
+  want boolean;
+begin
+  if me is null then
+    raise exception 'not_signed_in' using errcode = 'P0001';
+  end if;
+  if not public.flag_on('saves', me) then
+    raise exception 'saves_off' using errcode = 'P0001';
+  end if;
+  if public.is_banned(me) then
+    raise exception 'banned' using errcode = 'P0001';
+  end if;
+  if not public.video_is_visible(p_video) then
+    raise exception 'not_found' using errcode = 'P0001';
+  end if;
+
+  has := exists (select 1 from public.saves s where s.video_id = p_video and s.user_id = me);
+  want := coalesce(p_on, not has);
+  if want and not has then
+    insert into public.saves (video_id, user_id) values (p_video, me) on conflict do nothing;
+  elsif has and not want then
+    delete from public.saves s where s.video_id = p_video and s.user_id = me;
+  end if;
+
+  return jsonb_build_object(
+    'saved', want,
+    'save_count', (select v.save_count from public.videos v where v.id = p_video)
+  );
+end;
+$$;
+
+-- One clip as the app shows it, now with saved and save_count.
+create or replace function public.video_card(v public.videos, viewer uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'id', v.id,
+    'caption', v.caption,
+    'hashtags', to_jsonb(v.hashtags),
+    'visibility', v.visibility,
+    'status', v.status,
+    'duration_s', v.duration_s,
+    'width', v.width,
+    'height', v.height,
+    'hls_key', v.hls_key,
+    'thumbnail_url', v.thumbnail_url,
+    'like_count', v.like_count,
+    'comment_count', v.comment_count,
+    'view_count', v.view_count,
+    'share_count', v.share_count,
+    'save_count', v.save_count,
+    'published_at', v.published_at,
+    'created_at', v.created_at,
+    'removed', v.removed_at is not null,
+    'author', jsonb_build_object(
+      'id', p.id,
+      'username', p.username,
+      'display_name', p.display_name,
+      'avatar_url', p.avatar_url,
+      'verified', p.verified
+    ),
+    'liked', viewer is not null
+      and exists (select 1 from public.likes l where l.video_id = v.id and l.user_id = viewer),
+    'following', viewer is not null
+      and exists (select 1 from public.follows f where f.follower_id = viewer and f.followee_id = v.owner_id),
+    'saved', viewer is not null
+      and exists (select 1 from public.saves s where s.video_id = v.id and s.user_id = viewer),
+    'mine', viewer is not null and v.owner_id = viewer
+  )
+  from public.profiles p
+  where p.id = v.owner_id;
+$$;
+
+revoke execute on function public.video_card(public.videos, uuid) from public, anon, authenticated;
+
+-- The caller's own liked or saved clips, most recent first. Pass the "at" of
+-- the last one you have to get the next page. Each row is a clip card plus
+-- "at": when it was liked or saved.
+create or replace function public.my_clips(p_kind text, p_limit int default 24, p_before timestamptz default null)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(public.video_card(v, (select auth.uid())) || jsonb_build_object('at', picked.at) order by picked.at desc), '[]'::jsonb)
+  from (
+    select l.video_id, l.created_at as at from public.likes l
+     where p_kind = 'liked' and l.user_id = (select auth.uid()) and public.flag_on('likes', (select auth.uid()))
+    union all
+    select s.video_id, s.created_at from public.saves s
+     where p_kind = 'saved' and s.user_id = (select auth.uid()) and public.flag_on('saves', (select auth.uid()))
+  ) picked
+  join public.videos v on v.id = picked.video_id
+  join public.profiles p on p.id = v.owner_id
+  where v.visibility = 'public' and v.status = 'ready' and v.removed_at is null and p.banned_at is null
+    and (p_before is null or picked.at < p_before)
+    and picked.video_id in (
+      select x.video_id from (
+        select l.video_id, l.created_at as at from public.likes l where p_kind = 'liked' and l.user_id = (select auth.uid())
+        union all
+        select s.video_id, s.created_at from public.saves s where p_kind = 'saved' and s.user_id = (select auth.uid())
+      ) x
+      where p_before is null or x.at < p_before
+      order by x.at desc
+      limit least(greatest(coalesce(p_limit, 24), 1), 60)
+    );
+$$;
+
+revoke execute on function public.saves_count() from public, anon, authenticated;
+revoke execute on function public.toggle_save(uuid, boolean) from public, anon;
+revoke execute on function public.my_clips(text, int, timestamptz) from public, anon;
+grant execute on function public.toggle_save(uuid, boolean) to authenticated;
+grant execute on function public.my_clips(text, int, timestamptz) to authenticated;
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('saves', 'Saves', 'The bookmark on every clip, and the Liked and Saved tabs on your own profile.', 'off')
+on conflict (key) do nothing;
+
+-- ===== 013_discover.sql =====
+-- 013_discover.sql
+-- Finding things: hashtag pages, search and the Discover page.
+--
+-- - hashtag_page('cats') answers the clips with that hashtag, newest first,
+--   and how many there are (the hashtags flag).
+-- - search_all('text') answers people, hashtags and clips that match (the
+--   search flag). Plain matching for now: the start of a username or name, a
+--   hashtag that starts with the text, a caption that contains it. Good for
+--   thousands of clips; a proper text index is a later migration.
+-- - discover_page() answers what is popular: hashtags by clips in the last 30
+--   days, creators by followers, clips by views in the last 7 days (the
+--   discover flag).
+-- Everything here only ever lists clips that are in the feed (public, ready,
+-- not removed, creator not banned), with the same clip card as the feed.
+--
+-- Run after 012_saves.sql. Safe to run more than once.
+
+-- Text typed by a person, safe inside a LIKE pattern.
+create or replace function public.like_escape(t text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select replace(replace(replace(coalesce(t, ''), '\', '\\'), '%', '\%'), '_', '\_');
+$$;
+
+-- Is this clip in the feed? The same rule as the feed policy in 004.
+create or replace function public.video_is_live(v public.videos)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select v.visibility = 'public' and v.status = 'ready' and v.removed_at is null
+    and not exists (select 1 from public.profiles p where p.id = v.owner_id and p.banned_at is not null);
+$$;
+
+create or replace function public.hashtag_page(
+  p_tag text,
+  p_limit int default 24,
+  p_before timestamptz default null
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with tag as (select lower(regexp_replace(coalesce(p_tag, ''), '^#+', '')) as t)
+  select case when not public.flag_on('hashtags', (select auth.uid())) or (select t from tag) !~ '^[a-z0-9_]{1,30}$' then null
+  else jsonb_build_object(
+    'tag', (select t from tag),
+    'clip_count', (select count(*) from public.videos v where public.video_is_live(v) and v.hashtags @> array[(select t from tag)]),
+    'view_count', (select coalesce(sum(v.view_count), 0) from public.videos v where public.video_is_live(v) and v.hashtags @> array[(select t from tag)]),
+    'videos', coalesce((
+      select jsonb_agg(public.video_card(x, (select auth.uid())) order by x.published_at desc, x.id desc)
+      from (
+        select v.* from public.videos v
+        where public.video_is_live(v) and v.hashtags @> array[(select t from tag)]
+          and (p_before is null or v.published_at < p_before)
+        order by v.published_at desc, v.id desc
+        limit least(greatest(coalesce(p_limit, 24), 1), 60)
+      ) x
+    ), '[]'::jsonb)
+  ) end;
+$$;
+
+-- Hashtags by how many clips used them in the last p_days days.
+create or replace function public.trending_hashtags(p_limit int default 12, p_days int default 30)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object('tag', tag, 'clips', clips, 'views', views) order by clips desc, views desc, tag), '[]'::jsonb)
+  from (
+    select t.tag, count(*) as clips, sum(v.view_count) as views
+    from public.videos v, unnest(v.hashtags) as t(tag)
+    where public.video_is_live(v) and v.published_at > now() - make_interval(days => least(greatest(coalesce(p_days, 30), 1), 365))
+    group by t.tag
+    order by count(*) desc, sum(v.view_count) desc, t.tag
+    limit least(greatest(coalesce(p_limit, 12), 1), 50)
+  ) top;
+$$;
+
+-- A creator as a small card, for search and Discover.
+create or replace function public.creator_card(p public.profiles, viewer uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'id', p.id,
+    'username', p.username,
+    'display_name', p.display_name,
+    'avatar_url', p.avatar_url,
+    'verified', p.verified,
+    'follower_count', p.follower_count,
+    'video_count', p.video_count,
+    'following', viewer is not null
+      and exists (select 1 from public.follows f where f.follower_id = viewer and f.followee_id = p.id),
+    'mine', viewer is not null and p.id = viewer
+  );
+$$;
+
+-- People, hashtags and clips that match. Null while the search flag is off;
+-- empty lists for a query shorter than two characters.
+create or replace function public.search_all(p_q text, p_limit int default 18)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := (select auth.uid());
+  q text := lower(trim(both from regexp_replace(coalesce(p_q, ''), '^[#@]+', '')));
+  pat text := public.like_escape(q);
+  n int := least(greatest(coalesce(p_limit, 18), 1), 40);
+begin
+  if not public.flag_on('search', me) then
+    return null;
+  end if;
+  if char_length(q) < 2 or char_length(q) > 60 then
+    return jsonb_build_object('q', q, 'people', '[]'::jsonb, 'tags', '[]'::jsonb, 'clips', '[]'::jsonb);
+  end if;
+  return jsonb_build_object(
+    'q', q,
+    'people', coalesce((
+      select jsonb_agg(public.creator_card(p, me) order by p.follower_count desc, p.username)
+      from (
+        select x.* from public.profiles x
+        where x.banned_at is null and x.onboarded
+          and (lower(x.username) like pat || '%' or lower(x.display_name) like '%' || pat || '%')
+        order by x.follower_count desc, x.username
+        limit 8
+      ) p
+    ), '[]'::jsonb),
+    'tags', coalesce((
+      select jsonb_agg(jsonb_build_object('tag', tag, 'clips', clips) order by clips desc, tag)
+      from (
+        select t.tag, count(*) as clips
+        from public.videos v, unnest(v.hashtags) as t(tag)
+        where public.video_is_live(v) and t.tag like pat || '%'
+        group by t.tag
+        order by count(*) desc, t.tag
+        limit 8
+      ) tags
+    ), '[]'::jsonb),
+    'clips', coalesce((
+      select jsonb_agg(public.video_card(x, me) order by x.view_count desc, x.published_at desc)
+      from (
+        select v.* from public.videos v
+        where public.video_is_live(v) and (lower(v.caption) like '%' || pat || '%' or v.hashtags @> array[q])
+        order by v.view_count desc, v.published_at desc
+        limit n
+      ) x
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
+-- What is popular right now. Null while the discover flag is off.
+create or replace function public.discover_page()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when not public.flag_on('discover', (select auth.uid())) then null
+  else jsonb_build_object(
+    'tags', public.trending_hashtags(12, 30),
+    'creators', coalesce((
+      select jsonb_agg(public.creator_card(p, (select auth.uid())) order by p.follower_count desc, p.username)
+      from (
+        select x.* from public.profiles x
+        where x.banned_at is null and x.video_count > 0
+        order by x.follower_count desc, x.username
+        limit 10
+      ) p
+    ), '[]'::jsonb),
+    'clips', coalesce((
+      select jsonb_agg(public.video_card(x.vid, (select auth.uid())) order by x.recent desc, (x.vid).published_at desc)
+      from (
+        select v as vid, coalesce((
+          select sum(w.views) from public.video_views w where w.video_id = v.id and w.day > current_date - 7
+        ), 0) as recent
+        from public.videos v
+        where public.video_is_live(v)
+        order by recent desc, v.published_at desc
+        limit 18
+      ) x
+    ), '[]'::jsonb)
+  ) end;
+$$;
+
+revoke execute on function public.like_escape(text) from public, anon, authenticated;
+revoke execute on function public.video_is_live(public.videos) from public, anon, authenticated;
+revoke execute on function public.creator_card(public.profiles, uuid) from public, anon, authenticated;
+revoke execute on function public.hashtag_page(text, int, timestamptz) from public;
+revoke execute on function public.trending_hashtags(int, int) from public, anon, authenticated;
+revoke execute on function public.search_all(text, int) from public;
+revoke execute on function public.discover_page() from public;
+grant execute on function public.hashtag_page(text, int, timestamptz) to anon, authenticated;
+grant execute on function public.search_all(text, int) to anon, authenticated;
+grant execute on function public.discover_page() to anon, authenticated;
+
+update public.feature_flags set description = 'A page of clips per hashtag at /tag/<name>, and hashtags on a clip become links.'
+ where key = 'hashtags' and description like '%later session%';
+update public.feature_flags set description = 'Search for people, hashtags and clips at /search.'
+ where key = 'search' and description like '%later session%';
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('discover', 'Discover', 'Popular hashtags, creators and clips on the /search page before you type. Needs Search.', 'off')
+on conflict (key) do nothing;
+
+-- ===== 014_follow_lists.sql =====
+-- 014_follow_lists.sql
+-- Who follows a creator, and who they follow: the two lists behind the
+-- counts on a profile. Newest first, banned accounts left out.
+--
+-- Run after 013_discover.sql. Safe to run more than once.
+
+-- p_kind: 'followers' or 'following'. Pass the "at" of the last row you have
+-- to get the next page. Null while the follow_lists flag is off, or when
+-- there is no such account.
+create or replace function public.follow_list(
+  p_username text,
+  p_kind text,
+  p_limit int default 30,
+  p_before timestamptz default null
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when not public.flag_on('follow_lists', (select auth.uid())) or p_kind not in ('followers', 'following') then null
+  else (
+    select jsonb_build_object(
+      'username', owner.username,
+      'kind', p_kind,
+      'people', coalesce((
+        select jsonb_agg(public.creator_card(page.person, (select auth.uid())) || jsonb_build_object('at', page.at) order by page.at desc)
+        from (
+          select p as person, f.created_at as at
+          from public.follows f
+          join public.profiles p on p.id = case when p_kind = 'followers' then f.follower_id else f.followee_id end
+          where (case when p_kind = 'followers' then f.followee_id else f.follower_id end) = owner.id
+            and p.banned_at is null
+            and (p_before is null or f.created_at < p_before)
+          order by f.created_at desc
+          limit least(greatest(coalesce(p_limit, 30), 1), 60)
+        ) page
+      ), '[]'::jsonb)
+    )
+    from public.profiles owner
+    where lower(owner.username) = lower(p_username) and owner.banned_at is null
+  ) end;
+$$;
+
+revoke execute on function public.follow_list(text, text, int, timestamptz) from public;
+grant execute on function public.follow_list(text, text, int, timestamptz) to anon, authenticated;
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('follow_lists', 'Follower lists', 'Tapping Followers or Following on a profile opens the list of accounts. Needs Follows.', 'off')
+on conflict (key) do nothing;
+
+-- ===== 015_comment_threads.sql =====
+-- 015_comment_threads.sql
+-- Replies to comments, and likes on comments.
+--
+-- - A reply hangs under a top level comment (one level: a reply to a reply
+--   lands under the same top level comment).
+-- - comment_likes is private, like likes on clips; toggle_comment_like() is
+--   the only way to write it.
+-- - add_comment() takes the comment being answered. video_comments() now
+--   lists top level comments with their like and reply counts;
+--   comment_replies() lists the replies of one, oldest first.
+-- - Replies and comment likes need the comment_threads flag. Plain comments
+--   keep working without it.
+--
+-- Run after 014_follow_lists.sql. Safe to run more than once.
+
+alter table public.comments add column if not exists parent_id uuid references public.comments (id) on delete cascade;
+alter table public.comments add column if not exists like_count int not null default 0;
+alter table public.comments add column if not exists reply_count int not null default 0;
+
+create index if not exists comments_parent_idx on public.comments (parent_id, created_at) where parent_id is not null;
+
+revoke all on public.comments from anon, authenticated;
+grant select (id, video_id, author_id, body, created_at, parent_id, like_count, reply_count) on public.comments to anon, authenticated;
+
+create table if not exists public.comment_likes (
+  comment_id uuid not null references public.comments (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (comment_id, user_id)
+);
+
+alter table public.comment_likes enable row level security;
+
+drop policy if exists "people read their own comment likes" on public.comment_likes;
+create policy "people read their own comment likes"
+  on public.comment_likes
+  for select
+  to authenticated
+  using ((select auth.uid()) = user_id);
+
+revoke all on public.comment_likes from anon, authenticated;
+grant select on public.comment_likes to authenticated;
+
+create or replace function public.comment_likes_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.comments c
+     set like_count = greatest(c.like_count + case when tg_op = 'INSERT' then 1 else -1 end, 0)
+   where c.id = coalesce(new.comment_id, old.comment_id);
+  return null;
+end;
+$$;
+
+drop trigger if exists comment_likes_count on public.comment_likes;
+create trigger comment_likes_count
+  after insert or delete on public.comment_likes
+  for each row execute function public.comment_likes_count();
+
+-- comments.reply_count: the replies a visitor can read.
+create or replace function public.comment_replies_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  was_counted boolean := tg_op <> 'INSERT' and old.parent_id is not null and old.removed_at is null;
+  is_counted boolean := tg_op <> 'DELETE' and new.parent_id is not null and new.removed_at is null;
+begin
+  if was_counted and not is_counted then
+    update public.comments c set reply_count = greatest(c.reply_count - 1, 0) where c.id = old.parent_id;
+  elsif is_counted and not was_counted then
+    update public.comments c set reply_count = c.reply_count + 1 where c.id = new.parent_id;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists comment_replies_count on public.comments;
+create trigger comment_replies_count
+  after insert or update of removed_at or delete on public.comments
+  for each row execute function public.comment_replies_count();
+
+-- One comment as the app shows it.
+create or replace function public.comment_card(c public.comments, viewer uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'id', c.id,
+    'parent_id', c.parent_id,
+    'body', c.body,
+    'created_at', c.created_at,
+    'like_count', c.like_count,
+    'reply_count', c.reply_count,
+    'liked', viewer is not null
+      and exists (select 1 from public.comment_likes l where l.comment_id = c.id and l.user_id = viewer),
+    'author', jsonb_build_object(
+      'id', p.id,
+      'username', p.username,
+      'display_name', p.display_name,
+      'avatar_url', p.avatar_url,
+      'verified', p.verified
+    ),
+    'mine', viewer is not null and c.author_id = viewer
+  )
+  from public.profiles p
+  where p.id = c.author_id;
+$$;
+
+-- The old two argument add_comment (006) would make a call with two
+-- arguments ambiguous next to the new one.
+drop function if exists public.add_comment(uuid, text);
+
+-- Posts a comment, or a reply when p_parent is a comment on the same clip.
+-- Errors: not_signed_in, comments_off, replies_off, banned, not_onboarded,
+--   not_found, comment_invalid, slow_down
+create or replace function public.add_comment(p_video uuid, p_body text, p_parent uuid default null)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  me_profile public.profiles;
+  clean text := trim(both from regexp_replace(coalesce(p_body, ''), '[[:cntrl:]]+', ' ', 'g'));
+  parent public.comments;
+  new_row public.comments;
+begin
+  if me is null then
+    raise exception 'not_signed_in' using errcode = 'P0001';
+  end if;
+  if not public.flag_on('comments', me)
+     or coalesce(public.site_setting('comments_enabled'), 'true'::jsonb) = 'false'::jsonb then
+    raise exception 'comments_off' using errcode = 'P0001';
+  end if;
+  select * into me_profile from public.profiles p where p.id = me;
+  if me_profile.banned_at is not null then
+    raise exception 'banned' using errcode = 'P0001';
+  end if;
+  if me_profile.id is null or not me_profile.onboarded then
+    raise exception 'not_onboarded' using errcode = 'P0001';
+  end if;
+  if not public.video_is_visible(p_video) then
+    raise exception 'not_found' using errcode = 'P0001';
+  end if;
+  if p_parent is not null then
+    if not public.flag_on('comment_threads', me) then
+      raise exception 'replies_off' using errcode = 'P0001';
+    end if;
+    select * into parent from public.comments c
+     where c.id = p_parent and c.video_id = p_video and c.removed_at is null;
+    if parent.id is null then
+      raise exception 'not_found' using errcode = 'P0001';
+    end if;
+  end if;
+  if char_length(clean) not between 1 and 500 then
+    raise exception 'comment_invalid' using errcode = 'P0001';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('add_comment:' || me::text, 0));
+  if (select count(*) from public.comments c
+       where c.author_id = me and c.created_at > now() - interval '1 minute') >= 6 then
+    raise exception 'slow_down' using errcode = 'P0001';
+  end if;
+
+  insert into public.comments (video_id, author_id, body, parent_id)
+  -- One level: a reply to a reply goes under the same top level comment.
+  values (p_video, me, clean, coalesce(parent.parent_id, parent.id))
+  returning * into new_row;
+
+  return public.comment_card(new_row, me);
+end;
+$$;
+
+-- Likes a comment or takes the like back. Answers { liked, like_count }.
+-- Errors: not_signed_in, replies_off, banned, not_found
+create or replace function public.toggle_comment_like(p_comment uuid, p_on boolean default null)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  has boolean;
+  want boolean;
+begin
+  if me is null then
+    raise exception 'not_signed_in' using errcode = 'P0001';
+  end if;
+  if not public.flag_on('comment_threads', me) then
+    raise exception 'replies_off' using errcode = 'P0001';
+  end if;
+  if public.is_banned(me) then
+    raise exception 'banned' using errcode = 'P0001';
+  end if;
+  if not exists (select 1 from public.comments c
+                  where c.id = p_comment and c.removed_at is null and public.video_is_visible(c.video_id)) then
+    raise exception 'not_found' using errcode = 'P0001';
+  end if;
+
+  has := exists (select 1 from public.comment_likes l where l.comment_id = p_comment and l.user_id = me);
+  want := coalesce(p_on, not has);
+  if want and not has then
+    insert into public.comment_likes (comment_id, user_id) values (p_comment, me) on conflict do nothing;
+  elsif has and not want then
+    delete from public.comment_likes l where l.comment_id = p_comment and l.user_id = me;
+  end if;
+  return jsonb_build_object('liked', want, 'like_count', (select c.like_count from public.comments c where c.id = p_comment));
+end;
+$$;
+
+-- One page of a clip's top level comments, newest first.
+create or replace function public.video_comments(
+  p_video uuid,
+  p_limit int default 30,
+  p_before timestamptz default null,
+  p_before_id uuid default null
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(public.comment_card(c, (select auth.uid())) order by c.created_at desc, c.id desc), '[]'::jsonb)
+  from (
+    select x.*
+    from public.comments x
+    join public.profiles p on p.id = x.author_id
+    where x.video_id = p_video
+      and x.parent_id is null
+      and x.removed_at is null
+      and p.banned_at is null
+      and public.video_is_visible(p_video)
+      and public.flag_on('comments', (select auth.uid()))
+      and (p_before is null or (x.created_at, x.id) < (p_before, coalesce(p_before_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)))
+    order by x.created_at desc, x.id desc
+    limit least(greatest(coalesce(p_limit, 30), 1), 50)
+  ) c;
+$$;
+
+-- The replies under one comment, oldest first.
+create or replace function public.comment_replies(p_comment uuid, p_limit int default 50)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(public.comment_card(c, (select auth.uid())) order by c.created_at, c.id), '[]'::jsonb)
+  from (
+    select x.*
+    from public.comments x
+    join public.profiles p on p.id = x.author_id
+    where x.parent_id = p_comment
+      and x.removed_at is null
+      and p.banned_at is null
+      and public.video_is_visible(x.video_id)
+      and public.flag_on('comments', (select auth.uid()))
+    order by x.created_at, x.id
+    limit least(greatest(coalesce(p_limit, 50), 1), 100)
+  ) c;
+$$;
+
+revoke execute on function public.comment_likes_count() from public, anon, authenticated;
+revoke execute on function public.comment_replies_count() from public, anon, authenticated;
+revoke execute on function public.comment_card(public.comments, uuid) from public, anon, authenticated;
+revoke execute on function public.add_comment(uuid, text, uuid) from public, anon;
+revoke execute on function public.toggle_comment_like(uuid, boolean) from public, anon;
+revoke execute on function public.comment_replies(uuid, int) from public;
+grant execute on function public.add_comment(uuid, text, uuid) to authenticated;
+grant execute on function public.toggle_comment_like(uuid, boolean) to authenticated;
+grant execute on function public.comment_replies(uuid, int) to anon, authenticated;
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('comment_threads', 'Comment replies and likes', 'Reply to a comment and like comments. Needs Comments.', 'off')
+on conflict (key) do nothing;
+
+-- ===== 016_inbox.sql =====
+-- 016_inbox.sql
+-- The activity inbox: who liked, commented, replied or followed.
+--
+-- - notifications has one row per thing that happened to you. Triggers on
+--   likes, follows, comments and comment_likes write it; nothing else can.
+--   The same person liking the same clip twice makes one row, not two.
+-- - You never get a notification for your own action, or from a banned account.
+-- - inbox_page() lists yours, newest first; inbox_unread() counts the unread
+--   ones for the dot in the navigation; inbox_mark_read() clears it.
+-- - Nothing is written or shown while the inbox flag is off for the receiver.
+--
+-- Run after 015_comment_threads.sql. Safe to run more than once.
+
+create table if not exists public.notifications (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  actor_id uuid not null references public.profiles (id) on delete cascade,
+  kind text not null,
+  video_id uuid references public.videos (id) on delete cascade,
+  comment_id uuid references public.comments (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  read_at timestamptz,
+  constraint notifications_kind_valid check (kind in ('like', 'comment', 'reply', 'comment_like', 'follow')),
+  constraint notifications_not_self check (user_id <> actor_id)
+);
+
+create index if not exists notifications_user_idx on public.notifications (user_id, id desc);
+create index if not exists notifications_unread_idx on public.notifications (user_id) where read_at is null;
+-- One row per person, kind and thing.
+create unique index if not exists notifications_once on public.notifications (
+  user_id, actor_id, kind,
+  coalesce(video_id, '00000000-0000-0000-0000-000000000000'::uuid),
+  coalesce(comment_id, '00000000-0000-0000-0000-000000000000'::uuid)
+);
+
+alter table public.notifications enable row level security;
+-- Read through inbox_page(). No policies, no grants.
+revoke all on public.notifications from anon, authenticated;
+
+create or replace function public.notify(receiver uuid, actor uuid, kind text, video uuid, comment uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  if receiver is null or actor is null or receiver = actor then
+    return;
+  end if;
+  if not public.flag_on('inbox', receiver) or public.is_banned(actor) then
+    return;
+  end if;
+  insert into public.notifications (user_id, actor_id, kind, video_id, comment_id)
+  values (receiver, actor, kind, video, comment)
+  on conflict do nothing;
+end;
+$$;
+
+create or replace function public.notify_on_like()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.notify((select v.owner_id from public.videos v where v.id = new.video_id), new.user_id, 'like', new.video_id, null);
+  return null;
+end;
+$$;
+
+create or replace function public.notify_on_follow()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.notify(new.followee_id, new.follower_id, 'follow', null, null);
+  return null;
+end;
+$$;
+
+create or replace function public.notify_on_comment()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.parent_id is not null then
+    perform public.notify((select c.author_id from public.comments c where c.id = new.parent_id), new.author_id, 'reply', new.video_id, new.id);
+  else
+    perform public.notify((select v.owner_id from public.videos v where v.id = new.video_id), new.author_id, 'comment', new.video_id, new.id);
+  end if;
+  return null;
+end;
+$$;
+
+create or replace function public.notify_on_comment_like()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  c public.comments;
+begin
+  select * into c from public.comments x where x.id = new.comment_id;
+  perform public.notify(c.author_id, new.user_id, 'comment_like', c.video_id, c.id);
+  return null;
+end;
+$$;
+
+drop trigger if exists likes_notify on public.likes;
+create trigger likes_notify after insert on public.likes
+  for each row execute function public.notify_on_like();
+drop trigger if exists follows_notify on public.follows;
+create trigger follows_notify after insert on public.follows
+  for each row execute function public.notify_on_follow();
+drop trigger if exists comments_notify on public.comments;
+create trigger comments_notify after insert on public.comments
+  for each row execute function public.notify_on_comment();
+drop trigger if exists comment_likes_notify on public.comment_likes;
+create trigger comment_likes_notify after insert on public.comment_likes
+  for each row execute function public.notify_on_comment_like();
+
+-- The caller's notifications, newest first. Pass the id of the last one you
+-- have to get the next page. Things about clips or comments that are gone or
+-- removed drop out.
+create or replace function public.inbox_page(p_limit int default 40, p_before bigint default null)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(row order by id desc), '[]'::jsonb)
+  from (
+    select n.id, jsonb_build_object(
+      'id', n.id,
+      'kind', n.kind,
+      'created_at', n.created_at,
+      'unread', n.read_at is null,
+      'actor', jsonb_build_object(
+        'id', a.id, 'username', a.username, 'display_name', a.display_name, 'avatar_url', a.avatar_url, 'verified', a.verified
+      ),
+      'video', case when v.id is null then null else jsonb_build_object('id', v.id, 'caption', v.caption, 'thumbnail_url', v.thumbnail_url) end,
+      'comment', case when c.id is null then null else c.body end
+    ) as row
+    from public.notifications n
+    join public.profiles a on a.id = n.actor_id
+    left join public.videos v on v.id = n.video_id
+    left join public.comments c on c.id = n.comment_id
+    where n.user_id = (select auth.uid())
+      and public.flag_on('inbox', (select auth.uid()))
+      and a.banned_at is null
+      and (n.video_id is null or (v.removed_at is null and v.status = 'ready'))
+      and (n.comment_id is null or c.removed_at is null)
+      and (p_before is null or n.id < p_before)
+    order by n.id desc
+    limit least(greatest(coalesce(p_limit, 40), 1), 100)
+  ) page;
+$$;
+
+create or replace function public.inbox_unread()
+returns int
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when public.flag_on('inbox', (select auth.uid()))
+    then (select count(*)::int from public.notifications n where n.user_id = (select auth.uid()) and n.read_at is null)
+    else 0 end;
+$$;
+
+create or replace function public.inbox_mark_read()
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  update public.notifications n set read_at = now()
+   where n.user_id = (select auth.uid()) and n.read_at is null;
+$$;
+
+revoke execute on function public.notify(uuid, uuid, text, uuid, uuid) from public, anon, authenticated;
+revoke execute on function public.notify_on_like() from public, anon, authenticated;
+revoke execute on function public.notify_on_follow() from public, anon, authenticated;
+revoke execute on function public.notify_on_comment() from public, anon, authenticated;
+revoke execute on function public.notify_on_comment_like() from public, anon, authenticated;
+revoke execute on function public.inbox_page(int, bigint) from public, anon;
+revoke execute on function public.inbox_unread() from public, anon;
+revoke execute on function public.inbox_mark_read() from public, anon;
+grant execute on function public.inbox_page(int, bigint) to authenticated;
+grant execute on function public.inbox_unread() to authenticated;
+grant execute on function public.inbox_mark_read() to authenticated;
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('inbox', 'Activity inbox', 'The Inbox page: who liked, commented, replied or followed, with a dot for what is new.', 'off')
+on conflict (key) do nothing;
+
+-- ===== 017_messages.sql =====
+-- 017_messages.sql
+-- Direct messages: text, and sending a clip to someone.
+--
+-- - messages is private. Nobody reads or writes it through the API; the
+--   functions below only ever answer the caller's own conversations.
+-- - send_message() checks the flag, the ban, that the other account exists,
+--   and a limit of 30 messages a minute.
+-- - dm_threads() lists the caller's conversations, newest first, with the
+--   last message and how many are unread. dm_thread() answers one
+--   conversation and marks what was received as read.
+-- - For now anyone with an account can message anyone. "Who can message me"
+--   and blocking are a later migration.
+--
+-- Run after 016_inbox.sql. Safe to run more than once.
+
+create table if not exists public.messages (
+  id bigint generated always as identity primary key,
+  sender_id uuid not null references public.profiles (id) on delete cascade,
+  receiver_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null default '',
+  video_id uuid references public.videos (id) on delete set null,
+  created_at timestamptz not null default now(),
+  read_at timestamptz,
+  constraint messages_not_self check (sender_id <> receiver_id),
+  constraint messages_body_length check (char_length(body) <= 1000)
+);
+
+create index if not exists messages_pair_idx on public.messages (least(sender_id, receiver_id), greatest(sender_id, receiver_id), id desc);
+create index if not exists messages_unread_idx on public.messages (receiver_id) where read_at is null;
+create index if not exists messages_sender_recent_idx on public.messages (sender_id, created_at desc);
+
+alter table public.messages enable row level security;
+revoke all on public.messages from anon, authenticated;
+
+-- One message as the app shows it.
+create or replace function public.message_card(m public.messages, viewer uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'id', m.id,
+    'body', m.body,
+    'created_at', m.created_at,
+    'mine', m.sender_id = viewer,
+    'read', m.read_at is not null,
+    -- A clip that was sent along, if the viewer may still see it.
+    'video', (
+      select jsonb_build_object('id', v.id, 'caption', v.caption, 'thumbnail_url', v.thumbnail_url, 'username', p.username)
+      from public.videos v join public.profiles p on p.id = v.owner_id
+      where v.id = m.video_id and public.video_is_live(v)
+    ),
+    'had_video', m.video_id is not null
+  );
+$$;
+
+-- Sends a message. Errors: not_signed_in, messages_off, banned,
+--   not_onboarded, self, not_found, message_invalid, slow_down
+create or replace function public.send_message(p_to uuid, p_body text default '', p_video uuid default null)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  me_profile public.profiles;
+  clean text := trim(both from regexp_replace(coalesce(p_body, ''), '[[:cntrl:]]+', ' ', 'g'));
+  new_row public.messages;
+begin
+  if me is null then
+    raise exception 'not_signed_in' using errcode = 'P0001';
+  end if;
+  if not public.flag_on('messages', me) then
+    raise exception 'messages_off' using errcode = 'P0001';
+  end if;
+  select * into me_profile from public.profiles p where p.id = me;
+  if me_profile.banned_at is not null then
+    raise exception 'banned' using errcode = 'P0001';
+  end if;
+  if me_profile.id is null or not me_profile.onboarded then
+    raise exception 'not_onboarded' using errcode = 'P0001';
+  end if;
+  if p_to = me then
+    raise exception 'self' using errcode = 'P0001';
+  end if;
+  if not exists (select 1 from public.profiles p where p.id = p_to and p.banned_at is null) then
+    raise exception 'not_found' using errcode = 'P0001';
+  end if;
+  if p_video is not null and not public.video_is_visible(p_video) then
+    raise exception 'not_found' using errcode = 'P0001';
+  end if;
+  if char_length(clean) > 1000 or (clean = '' and p_video is null) then
+    raise exception 'message_invalid' using errcode = 'P0001';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('send_message:' || me::text, 0));
+  if (select count(*) from public.messages m
+       where m.sender_id = me and m.created_at > now() - interval '1 minute') >= 30 then
+    raise exception 'slow_down' using errcode = 'P0001';
+  end if;
+
+  insert into public.messages (sender_id, receiver_id, body, video_id)
+  values (me, p_to, clean, p_video)
+  returning * into new_row;
+  return public.message_card(new_row, me);
+end;
+$$;
+
+-- The caller's conversations, newest first.
+create or replace function public.dm_threads(p_limit int default 40)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when not public.flag_on('messages', (select auth.uid())) then '[]'::jsonb
+  else coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'with', public.creator_card(p, (select auth.uid())),
+      'last', public.message_card(t.last, (select auth.uid())),
+      'unread', t.unread
+    ) order by (t.last).id desc)
+    from (
+      select
+        case when m.sender_id = (select auth.uid()) then m.receiver_id else m.sender_id end as other,
+        (array_agg(m order by m.id desc))[1] as last,
+        count(*) filter (where m.receiver_id = (select auth.uid()) and m.read_at is null) as unread
+      from public.messages m
+      where (select auth.uid()) in (m.sender_id, m.receiver_id)
+      group by 1
+      order by max(m.id) desc
+      limit least(greatest(coalesce(p_limit, 40), 1), 100)
+    ) t
+    join public.profiles p on p.id = t.other and p.banned_at is null
+  ), '[]'::jsonb) end;
+$$;
+
+-- One conversation, oldest message first, and the person it is with. What
+-- the caller received in it is marked read. Null: no such account, or the
+-- flag is off. Pass the id of the oldest message you have for earlier ones.
+create or replace function public.dm_thread(p_username text, p_limit int default 60, p_before bigint default null)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  other public.profiles;
+  out jsonb;
+begin
+  if me is null or not public.flag_on('messages', me) then
+    return null;
+  end if;
+  select * into other from public.profiles p where lower(p.username) = lower(p_username) and p.banned_at is null;
+  if other.id is null or other.id = me then
+    return null;
+  end if;
+
+  select jsonb_build_object(
+    'with', public.creator_card(other, me),
+    'messages', coalesce((
+      select jsonb_agg(public.message_card(m, me) order by m.id)
+      from (
+        select x.* from public.messages x
+        where ((x.sender_id = me and x.receiver_id = other.id) or (x.sender_id = other.id and x.receiver_id = me))
+          and (p_before is null or x.id < p_before)
+        order by x.id desc
+        limit least(greatest(coalesce(p_limit, 60), 1), 100)
+      ) m
+    ), '[]'::jsonb)
+  ) into out;
+
+  update public.messages m set read_at = now()
+   where m.receiver_id = me and m.sender_id = other.id and m.read_at is null;
+  return out;
+end;
+$$;
+
+create or replace function public.dm_unread()
+returns int
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when public.flag_on('messages', (select auth.uid()))
+    then (select count(*)::int from public.messages m where m.receiver_id = (select auth.uid()) and m.read_at is null)
+    else 0 end;
+$$;
+
+revoke execute on function public.message_card(public.messages, uuid) from public, anon, authenticated;
+revoke execute on function public.send_message(uuid, text, uuid) from public, anon;
+revoke execute on function public.dm_threads(int) from public, anon;
+revoke execute on function public.dm_thread(text, int, bigint) from public, anon;
+revoke execute on function public.dm_unread() from public, anon;
+grant execute on function public.send_message(uuid, text, uuid) to authenticated;
+grant execute on function public.dm_threads(int) to authenticated;
+grant execute on function public.dm_thread(text, int, bigint) to authenticated;
+grant execute on function public.dm_unread() to authenticated;
+
+insert into public.feature_flags (key, label, description, mode)
+values
+  ('messages', 'Messages', 'Direct messages between accounts: text, and sending a clip to someone from the share sheet.', 'off')
+on conflict (key) do nothing;
 

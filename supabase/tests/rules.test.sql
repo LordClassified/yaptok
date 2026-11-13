@@ -240,13 +240,53 @@ select t.is(public.feed_page() -> 0 ->> 'liked', 'true', 'the feed knows what yo
 select t.is(t.err(format($$insert into public.likes (video_id, user_id) values (%L, auth.uid())$$, :clip)), 'permission denied for table likes', 'likes only go through toggle_like');
 select t.is(public.toggle_follow(:bea) ->> 'follower_count', '1', 'a follow counts');
 select t.is(t.err($$select public.toggle_follow(auth.uid())$$), 'self', 'nobody follows themselves');
+select t.is(jsonb_array_length(public.following_page()), 0, 'the Following feed is empty while its flag is off');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'following';
+select t.login(:cal);
+select t.is(jsonb_array_length(public.following_page()), 1, 'the Following feed has the clips of people you follow');
+select t.login(:owner);
+select t.is(jsonb_array_length(public.following_page()), 0, 'and nothing from people you do not follow');
+select t.anon();
+select t.is(t.err($$select public.following_page()$$), 'permission denied for function following_page', 'visitors have no Following feed');
+select t.login(:cal);
 select t.is(public.add_comment(:clip, E'  nice\nclip  ') ->> 'body', 'nice clip', 'a comment is trimmed to one line');
 select t.is(t.err(format($$select public.add_comment(%L, '')$$, :clip)), 'comment_invalid', 'an empty comment is refused');
 select t.is(jsonb_array_length(public.video_comments(:clip)), 1, 'the comment is listed');
+create temp table first_comment as select (public.video_comments(:clip) -> 0 ->> 'id')::uuid as id;
+grant select on first_comment to public;
+select t.is(t.err(format($$select public.add_comment(%L, 'a reply', %L)$$, :clip, (select id from first_comment))), 'replies_off', 'replies are off until their flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'comment_threads';
+select t.login(:bea);
+select t.is(public.add_comment(:clip, 'thank you!', (select id from first_comment)) ->> 'parent_id', (select id::text from first_comment), 'a reply hangs under its comment');
+select t.is(public.toggle_comment_like((select id from first_comment)) ->> 'like_count', '1', 'a comment like counts');
+select t.is(t.err(format($$select public.add_comment(%L, 'x', gen_random_uuid())$$, :clip)), 'not_found', 'a reply needs a real comment on the same clip');
+select t.login(:cal);
+select t.is(jsonb_array_length(public.video_comments(:clip)), 1, 'replies are not in the top level list');
+select t.is(public.video_comments(:clip) -> 0 ->> 'reply_count', '1', 'the comment counts its replies');
+select t.is(public.video_comments(:clip) -> 0 ->> 'liked', 'false', 'someone else''s like is not yours');
+select t.is(public.comment_replies((select id from first_comment)) -> 0 ->> 'body', 'thank you!', 'the replies are listed');
+select t.is(t.err($$insert into public.comment_likes (comment_id, user_id) select id, auth.uid() from first_comment$$), 'permission denied for table comment_likes', 'comment likes only go through the function');
 select t.is(public.record_view(:clip), true, 'a signed in view counts');
 select t.is(public.record_share(:clip), 1, 'a share counts');
+select t.is(t.err(format($$select public.toggle_save(%L)$$, :clip)), 'saves_off', 'saving is off until its flag is on');
 reset role;
-select t.is((select comment_count from public.videos where id = :clip), 1, 'the clip counts its comments');
+update public.feature_flags set mode = 'everyone' where key = 'saves';
+select t.login(:cal);
+select t.is(public.toggle_save(:clip) ->> 'save_count', '1', 'a save counts');
+select t.is(public.feed_page() -> 0 ->> 'saved', 'true', 'the feed knows what you saved');
+select t.is(jsonb_array_length(public.my_clips('saved')), 1, 'your saved list has it');
+select t.is(jsonb_array_length(public.my_clips('liked')), 1, 'your liked list has what you liked');
+select t.is(t.err(format($$insert into public.saves (video_id, user_id) values (%L, auth.uid())$$, :clip)), 'permission denied for table saves', 'saves only go through toggle_save');
+select t.login(:bea);
+select t.is((select count(*)::int from public.saves), 0, 'nobody reads someone else''s saves');
+select t.is(jsonb_array_length(public.my_clips('saved')), 0, 'and their saved list is their own');
+select t.anon();
+select t.is(t.err($$select public.my_clips('saved')$$), 'permission denied for function my_clips', 'visitors have no saved list');
+select t.login(:cal);
+reset role;
+select t.is((select comment_count from public.videos where id = :clip), 2, 'the clip counts its comments and replies');
 select t.is((select view_count::int from public.videos where id = :clip), 2, 'the clip counts its views');
 select t.is((select like_count from public.profiles where username = 'bea'), 1, 'the profile counts likes on its clips');
 
@@ -269,6 +309,88 @@ select t.is(jsonb_array_length(public.profile_page('bea') -> 'videos'), 1, 'a vi
 select t.login(:bea);
 select t.is(jsonb_array_length(public.profile_page('bea') -> 'videos'), 2, 'the owner also sees their failed clip');
 
+-- The inbox -----------------------------------------------------------------------------------
+
+select t.login(:bea);
+select t.is(public.inbox_unread(), 0, 'nothing is written while the inbox flag is off');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'inbox';
+select t.login(:cal);
+select public.toggle_like(:clip, false);
+select public.toggle_like(:clip, true);
+select public.toggle_like(:clip, false);
+select public.toggle_like(:clip, true);
+select public.add_comment(:clip, 'one more');
+select t.is(public.inbox_unread(), 0, 'your own actions never notify you');
+select t.login(:bea);
+select t.is(public.inbox_unread(), 2, 'a like and a comment notify the creator, the same like only once');
+select t.is(public.inbox_page() -> 0 ->> 'kind', 'comment', 'newest first');
+select t.is(public.inbox_page() -> 0 -> 'actor' ->> 'username', 'cal', 'with who did it');
+select t.is(t.err($$select * from public.notifications$$), 'permission denied for table notifications', 'notifications are not readable directly');
+select public.inbox_mark_read();
+select t.is(public.inbox_unread(), 0, 'marking read clears the count');
+select t.login(:cal);
+select t.is(jsonb_array_length(public.inbox_page()), 0, 'nobody sees someone else''s inbox');
+select t.anon();
+select t.is(t.err($$select public.inbox_page()$$), 'permission denied for function inbox_page', 'visitors have no inbox');
+
+-- Messages ------------------------------------------------------------------------------------
+
+select t.login(:cal);
+select t.is(t.err($$select public.send_message('00000000-0000-4000-8000-00000000000b', 'hi')$$), 'messages_off', 'messages are off until their flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'messages';
+select t.login(:cal);
+select t.is(public.send_message(:bea, E'  hello\nthere ') ->> 'body', 'hello there', 'a message is sent, trimmed to one line');
+select t.is(public.send_message(:bea, '', :clip) -> 'video' ->> 'username', 'bea', 'a clip can be sent along');
+select t.is(t.err($$select public.send_message(auth.uid(), 'me')$$), 'self', 'nobody messages themselves');
+select t.is(t.err($$select public.send_message('00000000-0000-4000-8000-00000000000b', '')$$), 'message_invalid', 'an empty message is refused');
+select t.is(t.err($$select public.send_message(gen_random_uuid(), 'hi')$$), 'not_found', 'the other account must exist');
+select t.is(t.err($$select * from public.messages$$), 'permission denied for table messages', 'messages are not readable directly');
+select t.login(:bea);
+select t.is(public.dm_unread(), 2, 'the receiver has two unread');
+select t.is(public.dm_threads() -> 0 -> 'with' ->> 'username', 'cal', 'the conversation is listed');
+select t.is((public.dm_threads() -> 0 ->> 'unread')::int, 2, 'with its unread count');
+select t.is(jsonb_array_length(public.dm_thread('cal') -> 'messages'), 2, 'the conversation has both messages, oldest first');
+select t.is(public.dm_unread(), 0, 'opening it marks them read');
+select t.login(:owner);
+select t.is(jsonb_array_length(public.dm_threads()), 0, 'nobody sees someone else''s conversations');
+select t.is(jsonb_array_length(public.dm_thread('cal') -> 'messages'), 0, 'or reads them by asking for one side');
+select t.anon();
+select t.is(t.err($$select public.dm_threads()$$), 'permission denied for function dm_threads', 'visitors have no messages');
+
+-- Hashtags, search, Discover ----------------------------------------------------------------
+
+select t.anon();
+select t.is(public.hashtag_page('yap'), null, 'hashtag pages are off until their flag is on');
+select t.is(public.search_all('ready'), null, 'search is off until its flag is on');
+select t.is(public.discover_page(), null, 'Discover is off until its flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key in ('hashtags', 'search', 'discover');
+select t.anon();
+select t.is(public.hashtag_page('#YAP') ->> 'clip_count', '1', 'a hashtag page counts its clips, whatever the case');
+select t.is(jsonb_array_length(public.hashtag_page('yap') -> 'videos'), 1, 'and lists them');
+select t.is(public.hashtag_page('cats') ->> 'clip_count', '0', 'a failed clip is not on its hashtag page');
+select t.is(public.hashtag_page('no such tag!'), null, 'a hashtag that cannot exist has no page');
+select t.is(jsonb_array_length(public.search_all('ready') -> 'clips'), 1, 'search finds a clip by its caption');
+select t.is(jsonb_array_length(public.search_all('#ya') -> 'tags'), 1, 'and a hashtag by its start');
+select t.is(public.search_all('@be') -> 'people' -> 0 ->> 'username', 'bea', 'and a person by the start of the username');
+select t.is(jsonb_array_length(public.search_all('%') -> 'clips'), 0, 'a wildcard is just a character');
+select t.is(jsonb_array_length(public.search_all('r') -> 'clips'), 0, 'one letter is not a search');
+select t.is(jsonb_array_length(public.discover_page() -> 'clips'), 1, 'Discover lists popular clips');
+select t.is(public.discover_page() -> 'creators' -> 0 ->> 'username', 'bea', 'and creators with clips');
+select t.is(public.discover_page() -> 'tags' -> 0 ->> 'tag', 'yap', 'and trending hashtags');
+
+select t.is(public.follow_list('bea', 'followers'), null, 'follower lists are off until their flag is on');
+reset role;
+update public.feature_flags set mode = 'everyone' where key = 'follow_lists';
+select t.anon();
+select t.is(public.follow_list('BEA', 'followers') -> 'people' -> 0 ->> 'username', 'cal', 'a creator''s followers are listed');
+select t.is(public.follow_list('cal', 'following') -> 'people' -> 0 ->> 'username', 'bea', 'and who an account follows');
+select t.is(jsonb_array_length(public.follow_list('bea', 'following') -> 'people'), 0, 'an empty list is empty');
+select t.is(public.follow_list('nobody_here', 'followers'), null, 'no such account, no list');
+select t.is(public.follow_list('bea', 'friends'), null, 'only the two kinds exist');
+
 -- Reports and moderation --------------------------------------------------------------------
 
 select t.login(:cal);
@@ -286,6 +408,8 @@ select t.anon();
 select t.is(jsonb_array_length(public.feed_page()), 0, 'a removed clip leaves the feed');
 select t.is((select count(*)::int from public.videos), 0, 'a removed clip is not readable');
 select t.is(jsonb_array_length(public.video_comments(:clip)), 0, 'its comments go with it');
+select t.is(jsonb_array_length(public.search_all('ready') -> 'clips'), 0, 'and it leaves search');
+select t.is(public.hashtag_page('yap') ->> 'clip_count', '0', 'and its hashtag page');
 select t.login(:bea);
 select t.is(public.video_by_id(:clip) ->> 'removed', 'true', 'the owner still sees it, marked removed');
 reset role;
@@ -349,6 +473,7 @@ select t.is(
       and p.proname not in (
         'is_admin', 'is_banned', 'session_status', 'username_available', 'username_is_valid', 'video_is_visible',
         'video_comments', 'feed_page', 'video_by_id', 'profile_page', 'record_view',
+        'hashtag_page', 'search_all', 'discover_page', 'follow_list', 'comment_replies',
         'video_extension_for', 'clean_hashtags', 'encode_max_attempts', 'encode_stale_after')),
   '', 'visitors can call only the functions meant for them');
 

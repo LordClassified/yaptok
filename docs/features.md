@@ -31,8 +31,19 @@ from `lib/store/session.ts` in the browser.
 | `record` | The Record button on the upload page | off |
 | `processing` | The encoder worker picks up uploads | off |
 | `likes`, `comments`, `follows`, `share` | The buttons on a clip | off |
+| `gestures` | Double tap to like, hold to pause, hold the right side for double speed | off |
+| `scrub` | Drag the bar at the bottom of a clip | off |
+| `following` | The Following feed at `/following` and the switch on top of the feed | off |
+| `messages` | Direct messages: text, and sending a clip from the share sheet | off |
+| `inbox` | The Inbox page: likes, comments, replies, new followers, with a dot for what is new | off |
+| `comment_threads` | Reply to a comment and like comments | off |
+| `follow_lists` | Followers and Following on a profile open the lists | off |
+| `saves` | The bookmark on a clip, and the Liked and Saved tabs on your own profile | off |
 | `reports` | Report a clip or a comment | off |
-| `search`, `hashtags`, `sounds` | Not built yet (later sessions) | off |
+| `hashtags` | Hashtag pages at `/tag/<name>`; hashtags on a clip become links | off |
+| `search` | Search for people, hashtags and clips at `/search` | off |
+| `discover` | Popular hashtags, creators and clips on `/search` before you type | off |
+| `sounds` | Not built yet (later session) | off |
 
 ## The feed
 
@@ -43,17 +54,40 @@ or pauses, `m` is sound, `l` likes, `c` opens the comments.
 - Only three clips are in the page at any time: the one playing, the next one
   (its stream already open and buffering, so the swipe starts at once) and the
   cover of the previous one.
-- Browsers only autoplay without sound, so the feed starts muted. The sound
-  button turns it on for every clip after that.
+- Browsers only autoplay without sound, so the first visit starts muted. The
+  sound button turns it on for every clip after that, and the choice is
+  remembered on that device. If the browser still refuses sound before a tap,
+  the clip starts muted instead of not starting.
+- With the `gestures` flag: a double tap likes (it never takes a like back), a
+  held finger pauses, and a finger held on the right third plays at double
+  speed until it lifts. A single tap then waits a quarter of a second before
+  it pauses, to see whether a second tap comes.
+- With the `scrub` flag the bar at the bottom can be dragged, or moved with
+  the left and right arrow keys when it has focus.
 - A view counts after two seconds on a clip, once per viewer, clip and day.
 - The next page of eight clips is fetched three clips before the end.
 - When there is nothing to play, the same stage says why: database not
   connected, feed switched off, or no clips yet.
 
+With the `following` flag a switch sits on top of the feed: For You, or
+Following (`/following`), which is the same player over the clips of the
+creators you follow. With the `saves` flag every clip has a bookmark; saved
+and liked clips are listed on two tabs of your own profile that only you see.
+
 Every rule is a small pure function in `lib/feed/nav.ts` with tests in
 `tests/feed.test.mjs`; `components/feed/Feed.tsx` only connects them to the
 page. The order is newest first for now. A ranked feed only has to change
 `feed_page()` in `007_feed.sql`.
+
+## Finding things
+
+`/search` is one page: before you type it shows what is popular (trending
+hashtags of the last 30 days, creators by followers, clips by views this
+week); with a query it shows people, hashtags and clips. The box is a plain
+form, so a search has an address you can share. `/tag/<name>` lists every clip
+with that hashtag. Matching is simple for now (the start of a username, a
+caption that contains the text); a text index is a later migration. Code:
+`013_discover.sql`, `lib/discover/`, `components/discover/`.
 
 ## Upload
 
@@ -116,6 +150,9 @@ anything (every function refuses it), and its clips and comments drop out of
 every list until it is unbanned. Nothing is deleted.
 
 ## Local stack
+
+To show the demo on a phone on the same Wi-Fi, add `--host` with this
+computer's address (see the top of `scripts/local-stack.mjs`).
 
 `npm run stack -- --reset --seed` starts a small stand in for Supabase and R2
 on top of a local PostgreSQL with the real migrations (see the top of

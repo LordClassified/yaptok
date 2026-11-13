@@ -20,6 +20,8 @@ const row = (n, extra = {}) => ({
   comment_count: "2",
   view_count: 10,
   share_count: 0,
+  save_count: 4,
+  saved: true,
   published_at: `2026-11-0${n}T10:00:00Z`,
   created_at: `2026-11-0${n}T09:00:00Z`,
   removed: false,
@@ -91,6 +93,8 @@ test("clips are read field by field", () => {
   assert.equal(clip.commentCount, 2);
   assert.equal(clip.author.displayName, "mira", "an empty name falls back to the username");
   assert.equal(clip.liked, true);
+  assert.equal(clip.saved, true);
+  assert.equal(clip.saveCount, 4);
   assert.equal(readClip({ id: "nope" }), null);
   assert.equal(readClip(row(1, { author: null })), null);
   assert.equal(readClips([row(1), "junk", row(2)]).length, 2);
@@ -131,4 +135,90 @@ test("error codes from the database become plain words", () => {
   assert.equal(rpcCode(null), null);
   assert.match(socialErrorText("comments_off"), /switched off/);
   assert.equal(socialErrorText("no_db"), "database not connected");
+});
+
+import { DOUBLE_TAP_MS, holdAction, isDoubleTap, movedTooFar, readMutedPref, scrubTime } from "../lib/feed/gestures.ts";
+
+test("gestures: a second tap in time is a double tap", () => {
+  assert.ok(isDoubleTap(1000 + DOUBLE_TAP_MS, 1000));
+  assert.ok(!isDoubleTap(1000 + DOUBLE_TAP_MS + 1, 1000));
+  assert.ok(!isDoubleTap(100, 0), "the first tap ever is not a double tap");
+});
+
+test("gestures: a finger that moved is a swipe; holding right is 2x, elsewhere pause", () => {
+  assert.ok(!movedTooFar(6, 6));
+  assert.ok(movedTooFar(0, 11));
+  assert.equal(holdAction(100, 390), "pause");
+  assert.equal(holdAction(300, 390), "fast");
+  assert.equal(holdAction(10, 0), "pause");
+});
+
+test("scrub: a point on the bar is a time in the clip, never outside it", () => {
+  assert.equal(scrubTime(200, 100, 200, 10), 5);
+  assert.equal(scrubTime(0, 100, 200, 10), 0);
+  assert.equal(scrubTime(999, 100, 200, 10), 10);
+  assert.equal(scrubTime(200, 100, 200, NaN), 0);
+});
+
+test("sound: only a remembered 'on' starts with sound", () => {
+  assert.equal(readMutedPref("on"), false);
+  assert.equal(readMutedPref("off"), true);
+  assert.equal(readMutedPref(null), true);
+});
+
+import { cleanQuery, cleanTag, readCreators, readDiscover, readSearch, readTagPage, readTags } from "../lib/discover/types.ts";
+
+test("discover: what a person typed, and what an address means", () => {
+  assert.equal(cleanQuery("  cats   and\ndogs "), "cats and dogs");
+  assert.equal(cleanQuery(["x"]), "");
+  assert.equal(cleanQuery("x".repeat(80)).length, 60);
+  assert.equal(cleanTag("%23Cats"), "cats");
+  assert.equal(cleanTag("so cute"), null);
+  assert.equal(cleanTag("x".repeat(31)), null);
+});
+
+test("discover: answers are read defensively", () => {
+  assert.deepEqual(readTags([{ tag: "cats", clips: "3" }, { tag: "Bad Tag", clips: 1 }, null]), [{ tag: "cats", clips: 3 }]);
+  const people = readCreators([{ id: "11111111-2222-4333-8444-555555555555", username: "mira", display_name: "Mira", verified: true, follower_count: 12, video_count: 3 }, { username: "nobody" }]);
+  assert.equal(people.length, 1);
+  assert.equal(people[0].followerCount, 12);
+  assert.equal(readSearch(null), null, "null means the search flag is off");
+  assert.deepEqual(readSearch({ q: "x" }), { q: "x", people: [], tags: [], clips: [] });
+  assert.equal(readDiscover({ clips: [row(1)] }).clips.length, 1);
+  assert.equal(readTagPage({ tag: "cats", clip_count: 2, view_count: "40", videos: [row(1), row(2)] }).viewCount, 40);
+  assert.equal(readTagPage({}), null);
+});
+
+import { noticeHref, noticeText, readNotices, unreadBadge } from "../lib/social/inbox.ts";
+
+test("inbox: notices are read, worded and linked", () => {
+  const actor = { id: "11111111-2222-4333-8444-555555555555", username: "cal", display_name: "Cal" };
+  const [like, follow] = readNotices([
+    { id: 2, kind: "like", created_at: "2026-11-12T10:00:00Z", unread: true, actor, video: { id: "v1", caption: "hi", thumbnail_url: null }, comment: null },
+    { id: 1, kind: "follow", unread: false, actor, video: null },
+    { id: 0, kind: "poke", actor },
+    { id: 3, kind: "like" },
+  ]);
+  assert.equal(noticeText(like.kind), "liked your clip");
+  assert.equal(noticeHref(like), "/v/v1");
+  assert.equal(noticeHref(follow), "/@cal");
+  assert.equal(like.unread, true);
+  assert.equal(readNotices([{ kind: "like", actor }, null]).length, 1);
+  assert.deepEqual([0, 3, 9, 10, 250].map(unreadBadge), [null, "3", "9", "9+", "9+"]);
+});
+
+import { mergeMessages, previewText, readMessage, readThread, readThreads } from "../lib/social/messages.ts";
+
+test("messages: read, previewed and merged without repeats", () => {
+  const person = { id: "11111111-2222-4333-8444-555555555555", username: "mira", display_name: "Mira" };
+  const m = (id, body, mine = false, extra = {}) => ({ id, body, created_at: "2026-11-12T10:00:00Z", mine, ...extra });
+  assert.equal(readMessage({ id: 1 }), null);
+  assert.equal(previewText(readMessage(m(1, "hi"))), "hi");
+  assert.equal(previewText(readMessage(m(2, "", true, { had_video: true }))), "You: Sent a clip");
+  assert.equal(readThreads([{ with: person, last: m(3, "yo"), unread: "2" }, { with: null, last: m(4, "x") }])[0].unread, 2);
+  assert.equal(readThread({ with: person, messages: [m(1, "a"), "junk", m(2, "b")] }).messages.length, 2);
+  assert.equal(readThread({ messages: [] }), null);
+  const have = [readMessage(m(1, "a")), { ...readMessage(m(-5, "new one", true)), pending: true }];
+  const merged = mergeMessages(have, [readMessage(m(1, "a")), readMessage(m(2, "new one", true))]);
+  assert.deepEqual(merged.map((x) => x.id), [1, 2], "the pending copy goes once the saved one arrives");
 });

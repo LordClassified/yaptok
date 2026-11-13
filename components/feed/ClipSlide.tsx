@@ -3,17 +3,18 @@
 import Link from "next/link";
 import type { Ref } from "react";
 import { Avatar } from "@/components/Avatar";
-import { CommentIcon, HeartIcon, MoreIcon, MutedIcon, PlusIcon, ShareIcon, VerifiedIcon, VolumeIcon } from "@/components/icons";
+import { BookmarkIcon, CommentIcon, HeartIcon, MoreIcon, MutedIcon, PlusIcon, ShareIcon, VerifiedIcon, VolumeIcon } from "@/components/icons";
 import { compactCount, timeAgo } from "@/lib/feed/format";
 import { clipSources, type Clip } from "@/lib/feed/types";
 import { useFeed } from "@/lib/store/feed";
 import { useFlag } from "@/lib/store/session";
+import { useUi } from "@/lib/store/ui";
 import { ClipPlayer, type ClipPlayerHandle } from "./ClipPlayer";
 import { ClipMenu } from "./ClipMenu";
 import { CommentsSheet } from "./CommentsSheet";
 import { ReportSheet } from "./ReportSheet";
 import { ShareSheet } from "./ShareSheet";
-import { useFollow, useLike } from "./useSocial";
+import { useFollow, useLike, useSave } from "./useSocial";
 
 function RailButton({
   label,
@@ -69,8 +70,14 @@ export function ClipSlide({
   const comments = useFlag("comments");
   const follows = useFlag("follows");
   const share = useFlag("share");
+  const saves = useFlag("saves");
   const profiles = useFlag("profiles");
+  const hashtagPages = useFlag("hashtags");
+  const gestures = useFlag("gestures");
+  const scrub = useFlag("scrub");
   const toggleLike = useLike(signedIn);
+  const toggleSave = useSave(signedIn);
+  const soundBlocked = useUi((s) => s.soundBlocked);
   const toggleFollow = useFollow(signedIn, `/v/${clip.id}`);
   const active = mode === "active";
   const profileHref = `/@${clip.author.username}`;
@@ -86,7 +93,14 @@ export function ClipSlide({
     <article className="flex h-full items-center justify-center" data-clip={clip.id} data-clip-mode={mode}>
       <div className="relative h-full w-full desk:my-4 desk:aspect-[9/16] desk:h-[calc(100%-32px)] desk:w-auto desk:max-w-[calc(100%-180px)] desk:overflow-visible">
         <div className="absolute inset-0 overflow-hidden bg-black desk:rounded-2xl">
-          <ClipPlayer src={src} poster={poster} mode={mode} muted={muted} cover={(clip.height ?? 16) >= (clip.width ?? 9)} ref={playerRef} />
+          <ClipPlayer src={src} poster={poster} mode={mode} muted={muted} cover={(clip.height ?? 16) >= (clip.width ?? 9)}
+            gestures={gestures}
+            scrub={scrub}
+            ref={playerRef}
+            // A double tap only ever likes: it never takes a like back.
+            onDoubleTap={likes ? () => !clip.liked && toggleLike(clip) : undefined}
+            onSoundBlocked={soundBlocked}
+          />
           {/* A soft shade so the text reads on any clip. */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 to-transparent" />
 
@@ -114,7 +128,19 @@ export function ClipSlide({
             </div>
             {clip.caption && <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-[14px] leading-5">{clip.caption}</p>}
             {clip.hashtags.length > 0 && (
-              <p className="mt-1 line-clamp-1 text-[14px] font-medium leading-5">{clip.hashtags.map((t) => `#${t}`).join(" ")}</p>
+              <p className="pointer-events-auto mt-1 line-clamp-1 text-[14px] font-medium leading-5">
+                {clip.hashtags.map((t) =>
+                  hashtagPages ? (
+                    <Link key={t} href={`/tag/${t}`} className="mr-2 hover:underline" tabIndex={active ? 0 : -1}>
+                      #{t}
+                    </Link>
+                  ) : (
+                    <span key={t} className="mr-2">
+                      #{t}
+                    </span>
+                  ),
+                )}
+              </p>
             )}
           </div>
 
@@ -155,6 +181,11 @@ export function ClipSlide({
           {comments && (
             <RailButton label="Comments" count={clip.commentCount} onClick={() => openSheet(sheet === "comments" ? null : "comments")} testId="comments">
               <CommentIcon className="h-7 w-7" />
+            </RailButton>
+          )}
+          {saves && (
+            <RailButton label={clip.saved ? "Remove from saved" : "Save"} pressed={clip.saved} count={clip.saveCount} onClick={() => toggleSave(clip)} testId="save">
+              <BookmarkIcon className={`h-6 w-6 ${clip.saved ? "text-[var(--accent)]" : "text-white"}`} />
             </RailButton>
           )}
           {share && (

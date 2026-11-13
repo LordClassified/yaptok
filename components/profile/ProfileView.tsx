@@ -4,13 +4,27 @@ import Link from "next/link";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { useFollow } from "@/components/feed/useSocial";
-import { ClipIcon, PlayIcon, VerifiedIcon } from "@/components/icons";
-import { clipLength, compactCount } from "@/lib/feed/format";
-import type { Profile } from "@/lib/feed/server";
-import { clipSources, type Clip } from "@/lib/feed/types";
+import { ClipGrid } from "@/components/feed/ClipGrid";
+import { ClipIcon, VerifiedIcon } from "@/components/icons";
+import { compactCount } from "@/lib/feed/format";
+import type { Profile, ProfileTab } from "@/lib/feed/server";
+import type { Clip } from "@/lib/feed/types";
 import { useFlag } from "@/lib/store/session";
 
-function Stat({ value, label }: { value: number; label: string }) {
+function Stat({ value, label, href }: { value: number; label: string; href?: string }) {
+  const body = (
+    <>
+      <p className="text-[18px] font-bold leading-6 text-text">{compactCount(value)}</p>
+      <p className="text-[13px] text-text-2">{label}</p>
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} prefetch={false} className="rounded-lg px-1 text-center hover:bg-hover" data-stat-link={label}>
+        {body}
+      </Link>
+    );
+  }
   return (
     <div className="text-center">
       <p className="text-[18px] font-bold leading-6 text-text">{compactCount(value)}</p>
@@ -36,6 +50,8 @@ export function ProfileView({
   mine,
   mediaBase,
   signedIn,
+  tab = "clips",
+  tabsOn = false,
 }: {
   profile: Profile;
   clips: Clip[];
@@ -43,9 +59,14 @@ export function ProfileView({
   mine: boolean;
   mediaBase: string | null;
   signedIn: boolean;
+  tab?: ProfileTab;
+  /** The owner's Liked and Saved tabs. */
+  tabsOn?: boolean;
 }) {
   const follows = useFlag("follows");
   const upload = useFlag("upload");
+  const lists = useFlag("follow_lists");
+  const messagesOn = useFlag("messages");
   const [following, setFollowing] = useState(followingAtLoad);
   const [followers, setFollowers] = useState(profile.followerCount);
   const toggleFollow = useFollow(signedIn, `/@${profile.username}`);
@@ -62,12 +83,17 @@ export function ProfileView({
           <p className="text-[15px] text-text-2">@{profile.username}</p>
           {profile.bio && <p className="mt-2 whitespace-pre-line text-[14px] leading-5 text-text">{profile.bio}</p>}
           <div className="mt-4 flex justify-center gap-8 sm:justify-start">
-            <Stat value={profile.followingCount} label="Following" />
-            <Stat value={followers} label="Followers" />
+            <Stat value={profile.followingCount} label="Following" href={lists ? `/@${profile.username}/following` : undefined} />
+            <Stat value={followers} label="Followers" href={lists ? `/@${profile.username}/followers` : undefined} />
             <Stat value={profile.likeCount} label="Likes" />
           </div>
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 gap-2">
+          {!mine && messagesOn && signedIn && !profile.banned && (
+            <Link href={`/messages/${profile.username}`} prefetch={false} className="btn-ghost" data-message-button>
+              Message
+            </Link>
+          )}
           {mine ? (
             <Link href="/settings" className="btn-ghost">
               Edit profile
@@ -94,6 +120,27 @@ export function ProfileView({
         </div>
       </header>
 
+      {tabsOn && (
+        <nav aria-label="Your lists" className="mt-6 flex justify-center gap-1 border-b border-divider sm:justify-start" data-profile-tabs>
+          {([
+            ["clips", "Clips"],
+            ["liked", "Liked"],
+            ["saved", "Saved"],
+          ] as const).map(([key, label]) => (
+            <Link
+              key={key}
+              href={key === "clips" ? `/@${profile.username}` : `/@${profile.username}?tab=${key}`}
+              prefetch={false}
+              aria-current={tab === key ? "page" : undefined}
+              className={`-mb-px border-b-2 px-4 py-2.5 text-[14px] font-medium ${tab === key ? "border-[var(--brand)] text-text" : "border-transparent text-text-2 hover:text-text"}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
+      {tabsOn && tab !== "clips" && <p className="mt-3 text-[13px] text-text-2">Only you can see this list.</p>}
+
       {profile.banned ? (
         <p className="mt-10 text-center text-[14px] text-text-2" data-profile-banned>
           This account has been banned for breaking the rules.
@@ -101,39 +148,28 @@ export function ProfileView({
       ) : clips.length === 0 ? (
         <div className="mt-12 text-center" data-profile-empty>
           <ClipIcon className="mx-auto h-12 w-12 text-text-3" />
-          <p className="mt-3 text-[16px] font-medium text-text">{mine ? "Post your first clip" : "No clips yet"}</p>
-          <p className="mt-1 text-[14px] text-text-2">{mine ? "Your clips will show up here." : "When this creator posts, their clips show up here."}</p>
-          {mine && upload && (
+          <p className="mt-3 text-[16px] font-medium text-text">
+            {tab === "liked" ? "No liked clips yet" : tab === "saved" ? "Nothing saved yet" : mine ? "Post your first clip" : "No clips yet"}
+          </p>
+          <p className="mt-1 text-[14px] text-text-2">
+            {tab === "liked"
+              ? "Clips you like show up here."
+              : tab === "saved"
+                ? "Tap the bookmark on a clip to keep it here."
+                : mine
+                  ? "Your clips will show up here."
+                  : "When this creator posts, their clips show up here."}
+          </p>
+          {mine && upload && tab === "clips" && (
             <Link href="/upload" className="btn-primary mt-4">
               Upload
             </Link>
           )}
         </div>
       ) : (
-        <ul className="mt-8 grid grid-cols-3 gap-1 sm:grid-cols-4 sm:gap-2 lg:grid-cols-5" data-profile-grid>
-          {clips.map((clip) => {
-            const { poster } = clipSources(clip, mediaBase);
-            const note = mine ? ownerNote(clip) : null;
-            return (
-              <li key={clip.id}>
-                <Link href={`/v/${clip.id}`} className="group relative block aspect-[9/16] overflow-hidden rounded-lg bg-skeleton" aria-label={clip.caption || "Clip"}>
-                  {poster && clip.status === "ready" && (
-                    // eslint-disable-next-line @next/next/no-img-element -- covers come from the media bucket, whose address is only known at request time
-                    <img src={poster} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                  )}
-                  <span className="over-video absolute bottom-1 left-1.5 flex items-center gap-0.5 text-[12px] font-medium text-white">
-                    <PlayIcon className="h-3.5 w-3.5" />
-                    {compactCount(clip.viewCount)}
-                  </span>
-                  {clip.durationS !== null && (
-                    <span className="over-video absolute bottom-1 right-1.5 text-[12px] font-medium text-white">{clipLength(clip.durationS)}</span>
-                  )}
-                  {note && <span className="pill absolute left-1.5 top-1.5 !bg-black/70 !text-white">{note}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="mt-8">
+          <ClipGrid clips={clips} mediaBase={mediaBase} note={mine && tab === "clips" ? ownerNote : undefined} />
+        </div>
       )}
     </div>
   );

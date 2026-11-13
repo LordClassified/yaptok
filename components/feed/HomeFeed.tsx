@@ -1,12 +1,17 @@
+import { notFound } from "next/navigation";
 import { Feed } from "@/components/feed/Feed";
 import { FeedNotice } from "@/components/feed/FeedNotice";
 import { getCurrentUser } from "@/lib/auth";
-import { feedState } from "@/lib/feed/server";
+import { feedState, type FeedSource } from "@/lib/feed/server";
+import { FeedTabs } from "./FeedTabs";
 import { flagOn } from "@/lib/flags";
 
-/** The feed, or the notice that says why there is none. `first` puts one clip at the top (/v/<id>). */
-export async function HomeFeed({ first }: { first?: string }) {
-  const state = await feedState(first);
+/**
+ * A feed, or the notice that says why there is none. `first` puts one clip at
+ * the top (/v/<id>); `source` picks For You or Following.
+ */
+export async function HomeFeed({ first, source = "feed_page" }: { first?: string; source?: FeedSource }) {
+  const state = await feedState(first, source);
   if (state.kind === "no-db") {
     return (
       <FeedNotice state="no-db" title="database not connected">
@@ -29,6 +34,30 @@ export async function HomeFeed({ first }: { first?: string }) {
       </FeedNotice>
     );
   }
+  const tabs = state.followingOn ? <FeedTabs current={source === "following_page" ? "following" : "foryou"} /> : null;
+  if (source === "following_page") {
+    if (!state.followingOn) notFound();
+    if (!state.signedIn) {
+      return (
+        <>
+          {tabs}
+          <FeedNotice state="following-signed-out" title="Your Following feed" action={{ href: "/login?next=/following", label: "Sign in" }}>
+            Sign in to see clips from the creators you follow.
+          </FeedNotice>
+        </>
+      );
+    }
+    if (state.clips.length === 0) {
+      return (
+        <>
+          {tabs}
+          <FeedNotice state="following-empty" title="Nothing here yet." action={{ href: "/", label: "Find creators in For You" }}>
+            Follow a few creators and their new clips show up here.
+          </FeedNotice>
+        </>
+      );
+    }
+  }
   if (state.clips.length === 0) {
     const user = await getCurrentUser();
     const canUpload = await flagOn("upload", user?.id ?? null);
@@ -42,5 +71,10 @@ export async function HomeFeed({ first }: { first?: string }) {
       </FeedNotice>
     );
   }
-  return <Feed initial={state.clips} mediaBase={state.mediaBase} signedIn={state.signedIn} />;
+  return (
+    <>
+      {tabs}
+      <Feed initial={state.clips} mediaBase={state.mediaBase} signedIn={state.signedIn} source={source} />
+    </>
+  );
 }

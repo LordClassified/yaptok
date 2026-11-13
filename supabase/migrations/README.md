@@ -15,6 +15,14 @@ in order, lowest number first.
 | `007_feed.sql` | The For You feed, creator pages, view and share counts |
 | `008_moderation.sql` | Reports, and the admin actions: remove, restore, ban, unban, verify, invite |
 | `009_admin_panel.sql` | What the pages under `/admin` read: lists, the log, the stats |
+| `017_messages.sql` | Direct messages: text, and sending a clip |
+| `016_inbox.sql` | The activity inbox and the triggers that fill it |
+| `015_comment_threads.sql` | Replies to comments and likes on comments |
+| `014_follow_lists.sql` | The follower and following lists of a profile |
+| `013_discover.sql` | Hashtag pages, search and the Discover page |
+| `012_saves.sql` | Saving clips, and the Liked and Saved lists |
+| `011_following.sql` | The Following feed |
+| `010_player.sql` | Flags for the player's touch controls (double tap, hold, scrub bar) |
 
 ## On a new Supabase project
 

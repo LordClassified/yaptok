@@ -15,8 +15,9 @@ export async function generateMetadata({ params }: PageProps<"/u/[handle]">): Pr
   };
 }
 
-async function ProfileGate({ params }: { params: PageProps<"/u/[handle]">["params"] }) {
-  const state = await profileState((await params).handle);
+async function ProfileGate({ params, searchParams }: Pick<PageProps<"/u/[handle]">, "params" | "searchParams">) {
+  const wanted = (await searchParams).tab;
+  const state = await profileState((await params).handle, wanted === "liked" || wanted === "saved" ? wanted : "clips");
   if (state.kind === "missing") notFound();
   if (state.kind === "no-db") {
     return (
@@ -36,15 +37,17 @@ async function ProfileGate({ params }: { params: PageProps<"/u/[handle]">["param
       mine={state.mine}
       mediaBase={state.mediaBase}
       signedIn={state.signedIn}
+      tab={state.tab}
+      tabsOn={state.tabsOn}
     />
   );
 }
 
 /** A creator's page, at /@username (see the rewrite in next.config.ts). */
-export default function ProfilePage({ params }: PageProps<"/u/[handle]">) {
+export default function ProfilePage({ params, searchParams }: PageProps<"/u/[handle]">) {
   return (
     <Suspense fallback={<div className="mx-auto mt-10 h-24 w-24 rounded-full bg-skeleton" aria-hidden />}>
-      <ProfileGate params={params} />
+      <ProfileGate params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
