@@ -118,7 +118,7 @@ test("the brand is ours: one mark, drawn in lib/brand.ts", async () => {
   const brand = await import("../lib/brand.ts");
   assert.equal(brand.SITE_NAME, "YapTok");
   assert.match(brand.markSvg(), /^<svg [^>]*viewBox="0 0 24 24"/);
-  assert.ok(brand.markSvg().includes(brand.MARK_BUBBLE) && brand.markSvg().includes(brand.MARK_BARS));
+  assert.ok(brand.markSvg().includes(brand.MARK_HEAD) && brand.markSvg().includes(brand.MARK_STEM));
   assert.match(brand.logoSvg(), /Yap<\/tspan><tspan[^>]*>Tok/);
   const css = readFileSync(join(root, "app/globals.css"), "utf8");
   assert.ok(css.includes(brand.BRAND.orange), "globals.css uses the brand orange");
