@@ -116,6 +116,9 @@ the plain 404 page. Three locks, from outside in: `proxy.ts`, the page's own
 database. The third one is the one that counts: the tables behind the panel
 cannot be read or written through the API at all.
 
+An admin can also open it from any page with Ctrl+Shift+S (Cmd+Shift+S on a
+Mac). The keys do nothing for anyone else.
+
 | Tab | What you can do |
 | --- | --- |
 | Features | Every flag with Off / Test / Everyone, a search box, who changed it and when |

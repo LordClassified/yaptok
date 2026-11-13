@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Roboto } from "next/font/google";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
+import { AdminShortcut } from "@/components/shell/AdminShortcut";
 import { Banner, BottomBar, SideRail } from "@/components/shell/Nav";
 import { SessionLoader } from "@/components/shell/SessionLoader";
 import { Toast } from "@/components/Toast";
@@ -55,6 +56,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </div>
         <Suspense fallback={null}>
           <BottomBar />
+        </Suspense>
+        <Suspense fallback={null}>
+          <AdminShortcut />
         </Suspense>
         <Toast />
       </body>
