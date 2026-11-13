@@ -13,11 +13,11 @@
   --text: #1c1410;
   --text-2: #5f554e;
   --text-3: #736860;
-  --brand: #ea580c;
-  --brand-strong: #c2410c;
-  --link: #c2410c;
-  --mark: #f97316;
-  --logo-word: #ea580c;
+  --brand: #c4522c;
+  --brand-strong: #c4522c;
+  --link: #b54c29;
+  --mark: #fc6a39;
+  --logo-word: #c4522c;
   --accent: #b45309;
   --divider: #ece5df;
   --hover: #f5efea;
@@ -27,11 +27,11 @@
   --input-bg: #ffffff;
   --skeleton: #efe8e2;
   --menu-shadow: 0 8px 32px rgba(28, 20, 16, 0.14), 0 0 0 1px rgba(28, 20, 16, 0.08);
-  --focus: #ea580c;
+  --focus: #c4522c;
   --error: #c62828;
   --ok: #15803d;
   --warn: #b45309;
-  --progress: #ea580c;
+  --progress: #fc6a39;
   --progress-track: #ece5df;
   color-scheme: light;
 }
@@ -42,11 +42,11 @@
   --text: #faf6f3;
   --text-2: #b8aea8;
   --text-3: #948a84;
-  --brand: #f97316;
-  --brand-strong: #c2410c;
-  --link: #fb923c;
-  --mark: #f97316;
-  --logo-word: #fb923c;
+  --brand: #fc6a39;
+  --brand-strong: #c4522c;
+  --link: #fd8a63;
+  --mark: #fc6a39;
+  --logo-word: #fd8a63;
   --accent: #fbbf24;
   --divider: #2e2723;
   --hover: #241e1b;
@@ -56,11 +56,11 @@
   --input-bg: #140f0d;
   --skeleton: #241e1b;
   --menu-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  --focus: #fb923c;
+  --focus: #fd8a63;
   --error: #ff6b61;
   --ok: #4ade80;
   --warn: #fbbf24;
-  --progress: #f97316;
+  --progress: #fc6a39;
   --progress-track: #2e2723;
   color-scheme: dark;
 }

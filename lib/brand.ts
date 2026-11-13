@@ -23,12 +23,12 @@ export const MARK_BARS = "M8 9.6v1.8M12 7.6v5.8M16 8.9v3.2";
 
 /** Brand colors, also set as --mark, --brand, --brand-strong and --accent in app/globals.css. */
 export const BRAND = {
-  /** The mark and highlights. */
-  orange: "#f97316",
+  /** Yapin's own orange, from its app icon. The mark and highlights. */
+  orange: "#fc6a39",
   /** Links and the wordmark on a dark page. */
-  orangeLight: "#fb923c",
-  /** Buttons: dark enough for white text to read on it. */
-  orangeDeep: "#c2410c",
+  orangeLight: "#fd8a63",
+  /** Buttons: the same hue, dark enough for white text to read on it (4.5 to 1). */
+  orangeDeep: "#c4522c",
   /** A liked heart, a saved bookmark, the unread dot. */
   gold: "#fbbf24",
   /** The app's dark page color. */
