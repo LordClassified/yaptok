@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { MARK_BARS, MARK_BUBBLE, MARK_VIEWBOX } from "@/lib/brand";
+import { BRAND, MARK_HEAD, MARK_LAYERS, MARK_STEM, MARK_VIEWBOX } from "@/lib/brand";
 
 type IconProps = { className?: string };
 
@@ -34,12 +34,20 @@ function solid(children: ReactNode) {
   };
 }
 
-/** The YapTok mark: the orange speech bubble with three sound bars (lib/brand.ts). */
+/** The YapTok mark: the orange eighth note with a lit edge (lib/brand.ts). */
 export function LogoMark({ className }: IconProps) {
   return (
     <svg viewBox={MARK_VIEWBOX} className={className} aria-hidden>
-      <path d={MARK_BUBBLE} fill="var(--mark)" />
-      <path d={MARK_BARS} fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      {MARK_LAYERS.map((l) => (
+        <g
+          key={l.tone}
+          transform={`translate(${l.dx} ${l.dy})`}
+          fill={l.tone === "light" ? BRAND.markLight : l.tone === "dark" ? BRAND.markDark : "var(--mark)"}
+        >
+          <path d={MARK_HEAD} />
+          <path d={MARK_STEM} />
+        </g>
+      ))}
     </svg>
   );
 }
