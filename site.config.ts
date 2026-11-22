@@ -5,9 +5,9 @@
 
 export const siteConfig = {
   /** The site's name in titles and share cards. */
-  siteName: "YapTok",
+  siteName: "Yapit",
   /** One line about the site, for share cards and search results. */
-  description: "Short vertical videos. Swipe up for the next one.",
+  description: "A place to discover, share and enjoy short videos.",
   /** The source code. */
   sourceUrl: "https://github.com/LordClassified/yaptok",
 } as const;
