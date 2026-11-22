@@ -23,7 +23,7 @@ export function AuthCard({
         <div className="flex items-center justify-center gap-1">
           <LogoMark className="h-8 w-8" />
           <span className="text-[24px] font-bold tracking-[-0.6px] text-text">
-            <span className="text-[var(--logo-word)]">Yap</span>Tok
+            <span className="text-[var(--logo-word)]">Yap</span>it
           </span>
         </div>
         <h1 className="mt-4 text-center text-[24px] font-normal leading-8 text-text">{title}</h1>
