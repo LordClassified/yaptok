@@ -6,7 +6,7 @@
 #   PORT=3001 docker compose -p yaptok-green up -d
 services:
   app:
-    image: ghcr.io/myfilehero/yaptok:${TAG:-latest}
+    image: ghcr.io/lordclassified/yaptok:${TAG:-latest}
     restart: unless-stopped
     env_file: /opt/yaptok/.env
     ports:
