@@ -9,7 +9,7 @@ export const siteConfig = {
   /** One line about the site, for share cards and search results. */
   description: "Short vertical videos. Swipe up for the next one.",
   /** The source code. */
-  sourceUrl: "https://github.com/myfilehero/yaptok",
+  sourceUrl: "https://github.com/LordClassified/yaptok",
 } as const;
 
 export type SiteConfig = typeof siteConfig;
