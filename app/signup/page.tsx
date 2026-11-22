@@ -6,7 +6,7 @@ import { safeNext } from "@/lib/accounts/redirect";
 import { accountsState } from "@/lib/accounts/server";
 import { getSettings } from "@/lib/site/settings";
 
-export const metadata = { title: "Create your account | YapTok" };
+export const metadata = { title: "Create your account | Yapit" };
 
 async function SignupGate({ searchParams }: { searchParams: PageProps<"/signup">["searchParams"] }) {
   const next = safeNext((await searchParams).next);
