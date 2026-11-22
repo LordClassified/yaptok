@@ -94,7 +94,7 @@ no screen yet for adding other testers.
 You need [Node.js 22](https://nodejs.org/) with npm.
 
 ```bash
-git clone https://github.com/myfilehero/yaptok.git
+git clone https://github.com/LordClassified/yaptok.git
 cd yaptok
 npm ci
 cp .env.example .env.local   # leave it empty for now
