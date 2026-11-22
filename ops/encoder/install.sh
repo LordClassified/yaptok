@@ -12,7 +12,7 @@
 #   2. Writes /opt/yaptok-encoder/docker-compose.yml and the work and state folders
 #   3. Installs the yaptok-encoder systemd unit (starts the worker on boot)
 #   4. Installs /usr/local/bin/yaptok-encoder-update and a systemd timer that
-#      runs it every 5 minutes: pull ghcr.io/myfilehero/yaptok-encoder:latest
+#      runs it every 5 minutes: pull ghcr.io/lordclassified/yaptok-encoder:latest
 #      and restart the worker on a new image, but never in the middle of an encode
 #   5. Sets up log rotation for the update log (the worker's own log is rotated
 #      by Docker: 5 files of 10 MB)
@@ -24,7 +24,7 @@ set -euo pipefail
 
 APP_DIR=/opt/yaptok-encoder
 ENV_FILE=$APP_DIR/.env
-IMAGE=ghcr.io/myfilehero/yaptok-encoder:latest
+IMAGE=ghcr.io/lordclassified/yaptok-encoder:latest
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31mError: %s\033[0m\n' "$*" >&2; exit 1; }
@@ -61,7 +61,7 @@ cat > "$APP_DIR/docker-compose.yml" <<YAML
 # with this server's name as the container's host name.
 services:
   encoder:
-    image: ghcr.io/myfilehero/yaptok-encoder:\${TAG:-latest}
+    image: ghcr.io/lordclassified/yaptok-encoder:\${TAG:-latest}
     container_name: yaptok-encoder
     hostname: ${BOX_NAME:-encoder}
     restart: unless-stopped
@@ -109,7 +109,7 @@ cat > /usr/local/bin/yaptok-encoder-update <<'UPDATE'
 set -uo pipefail
 
 APP_DIR=/opt/yaptok-encoder
-IMAGE=ghcr.io/myfilehero/yaptok-encoder:latest
+IMAGE=ghcr.io/lordclassified/yaptok-encoder:latest
 BUSY=$APP_DIR/state/busy
 LOG=/var/log/yaptok-encoder-update.log
 # A marker older than this belongs to a crashed worker: the job limit is 2 hours.
