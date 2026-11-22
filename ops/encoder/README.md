@@ -111,12 +111,12 @@ the new one here.
 ## 4. Run the installer
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/myfilehero/yaptok/main/ops/encoder/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/LordClassified/yaptok/main/ops/encoder/install.sh -o install.sh
 bash install.sh
 ```
 
 (If the repository is private, that download fails. Open
-[`ops/encoder/install.sh`](https://github.com/myfilehero/yaptok/blob/main/ops/encoder/install.sh)
+[`ops/encoder/install.sh`](https://github.com/LordClassified/yaptok/blob/main/ops/encoder/install.sh)
 on GitHub, click **Copy raw file**, and paste it into `nano install.sh` instead.)
 
 It installs Docker, the `yaptok-encoder` service (starts on boot), log rotation
@@ -124,13 +124,13 @@ and a timer that checks for a new image every 5 minutes. Running it again is saf
 
 ## 5. Let the box pull the image
 
-The image is `ghcr.io/myfilehero/yaptok-encoder`. GitHub builds it the first
+The image is `ghcr.io/lordclassified/yaptok-encoder`. GitHub builds it the first
 time `worker/` reaches the `release` branch. You can also start a build by hand:
 **Actions > encoder > Run workflow** on the
-[Actions page](https://github.com/myfilehero/yaptok/actions/workflows/encoder.yml).
+[Actions page](https://github.com/LordClassified/yaptok/actions/workflows/encoder.yml).
 
 Then make the package public so the box can pull it without a login:
-[Your packages](https://github.com/myfilehero?tab=packages) >
+[Your packages](https://github.com/LordClassified?tab=packages) >
 **yaptok-encoder** > **Package settings** > **Change visibility** > **Public**.
 GitHub docs: [Configuring a package's visibility](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
 
@@ -257,7 +257,7 @@ deleting. Nothing else to set up.
 The worker's own log is kept by Docker: 5 files of 10 MB at most.
 
 **How the updater works.** Every 5 minutes `yaptok-encoder-update` pulls
-`ghcr.io/myfilehero/yaptok-encoder:latest`. If the image is new and no encode is
+`ghcr.io/lordclassified/yaptok-encoder:latest`. If the image is new and no encode is
 running, it restarts the worker on it. If an encode is running (the `busy`
 marker is there and younger than 140 minutes), it waits and tries again 5 minutes
 later.
