@@ -1,4 +1,4 @@
-# YapTok
+# Yapit
 
 <p align="center">
   <img src="docs/screenshots/desk-feed.webp" alt="The YapTok feed on a desktop: one vertical clip, the action buttons beside it" width="720">
@@ -13,7 +13,7 @@
 > YapTok website yet. If you want to try it, run your own copy: see
 > [Quick start](#quick-start).
 
-YapTok is a short video app: a full screen "For You" feed you swipe through,
+Yapit is a short video app: a full screen "For You" feed you swipe through,
 likes, comments, follows, sharing, creator pages, upload from a phone or a
 desk, and an admin panel where the owner switches features on and off without
 a deploy. It is an independent project with its own name, mark and look (see
