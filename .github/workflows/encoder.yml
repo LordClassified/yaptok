@@ -53,7 +53,7 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
           tags: |
-            ghcr.io/myfilehero/yaptok-encoder:latest
-            ghcr.io/myfilehero/yaptok-encoder:${{ github.sha }}
+            ghcr.io/lordclassified/yaptok-encoder:latest
+            ghcr.io/lordclassified/yaptok-encoder:${{ github.sha }}
           cache-from: type=gha,scope=encoder
           cache-to: type=gha,mode=max,scope=encoder
