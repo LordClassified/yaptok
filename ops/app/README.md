@@ -171,8 +171,8 @@ set **Site URL** to `https://yaptok.example.com` (your domain) and add
 The image lives in the GitHub Container Registry. Pick **one** of these:
 
 **Option A (simplest): make the package public.** After the first build (step 9) open
-[the package settings](https://github.com/users/myfilehero/packages/container/yaptok/settings)
-(for an organization: `https://github.com/orgs/myfilehero/packages/container/yaptok/settings`),
+[the package settings](https://github.com/users/LordClassified/packages/container/yaptok/settings)
+(for an organization: `https://github.com/orgs/LordClassified/packages/container/yaptok/settings`),
 scroll to **Danger Zone**, and change visibility to **Public**. Nothing to do on the server.
 
 **Option B: log the server in.** Create a
@@ -194,7 +194,7 @@ nano /root/install.sh
 ```
 
 Paste the whole contents of
-[`ops/app/install.sh`](https://github.com/myfilehero/yaptok/blob/main/ops/app/install.sh)
+[`ops/app/install.sh`](https://github.com/LordClassified/yaptok/blob/main/ops/app/install.sh)
 (on GitHub, click **Copy raw file**), save with `Ctrl+O`, `Enter`, and quit with `Ctrl+X`.
 
 Run it:
@@ -220,7 +220,7 @@ On your own computer, in the YapTok repo:
 git push origin main:release
 ```
 
-Watch the build on the [Actions tab](https://github.com/myfilehero/yaptok/actions).
+Watch the build on the [Actions tab](https://github.com/LordClassified/yaptok/actions).
 When it is green, wait up to 5 minutes and open your domain.
 
 ## 10. Make yourself the admin and switch features on
@@ -295,7 +295,7 @@ everything from `010` on.
 
 ## How the updater works
 
-Every 5 minutes `yaptok-update` pulls `ghcr.io/myfilehero/yaptok:latest`. If the image
+Every 5 minutes `yaptok-update` pulls `ghcr.io/lordclassified/yaptok:latest`. If the image
 changed, it starts the new version next to the old one (blue on port 3000, green on 3001),
 waits until `/api/health` answers, points Caddy at the new one, and stops the old one.
 If the new version never gets healthy, the old one keeps serving and the log says why.
