@@ -2,7 +2,7 @@
 # /opt/yaptok-encoder/docker-compose.yml on the encoder box.
 services:
   encoder:
-    image: ghcr.io/myfilehero/yaptok-encoder:${TAG:-latest}
+    image: ghcr.io/lordclassified/yaptok-encoder:${TAG:-latest}
     container_name: yaptok-encoder
     # The worker's name (unless WORKER_NAME is set). It must stay the same across
     # restarts and differ between boxes: install.sh puts the server's name here.
