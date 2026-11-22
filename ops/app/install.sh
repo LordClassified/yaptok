@@ -22,7 +22,7 @@ set -euo pipefail
 
 APP_DIR=/opt/yaptok
 ENV_FILE=$APP_DIR/.env
-IMAGE=ghcr.io/myfilehero/yaptok:latest
+IMAGE=ghcr.io/lordclassified/yaptok:latest
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31mError: %s\033[0m\n' "$*" >&2; exit 1; }
@@ -65,7 +65,7 @@ cat > "$APP_DIR/docker-compose.yml" <<'YAML'
 # Written by install.sh. Same as ops/app/docker-compose.yml in the repo.
 services:
   app:
-    image: ghcr.io/myfilehero/yaptok:${TAG:-latest}
+    image: ghcr.io/lordclassified/yaptok:${TAG:-latest}
     restart: unless-stopped
     env_file: /opt/yaptok/.env
     ports:
@@ -108,7 +108,7 @@ cat > /usr/local/bin/yaptok-update <<'UPDATE'
 set -uo pipefail
 
 APP_DIR=/opt/yaptok
-IMAGE=ghcr.io/myfilehero/yaptok:latest
+IMAGE=ghcr.io/lordclassified/yaptok:latest
 STATE=$APP_DIR/active
 UPSTREAM=/etc/caddy/yaptok-upstream.caddy
 LOG=/var/log/yaptok-update.log
