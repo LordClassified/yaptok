@@ -5,7 +5,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { safeNext } from "@/lib/accounts/redirect";
 import { accountsState } from "@/lib/accounts/server";
 
-export const metadata = { title: "Sign in | YapTok" };
+export const metadata = { title: "Sign in | Yapit" };
 
 const callbackError = "Sign in did not finish. Try again.";
 /** proxy.ts sends a banned account here once it has signed it out. */
