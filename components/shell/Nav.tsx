@@ -77,10 +77,10 @@ function Badge({ text }: { text: string }) {
 
 export function Logo() {
   return (
-    <Link href="/" aria-label="YapTok home" className="flex h-14 items-center gap-2 px-4">
+    <Link href="/" aria-label="Yapit home" className="flex h-14 items-center gap-2 px-4">
       <LogoMark className="h-8 w-8" />
       <span className="text-[22px] font-bold leading-none tracking-[-0.6px] text-text">
-        <span className="text-[var(--logo-word)]">Yap</span>Tok
+        <span className="text-[var(--logo-word)]">Yap</span>it
       </span>
     </Link>
   );
