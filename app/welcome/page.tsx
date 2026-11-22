@@ -5,7 +5,7 @@ import { WelcomeForm } from "@/components/auth/WelcomeForm";
 import { safeNext } from "@/lib/accounts/redirect";
 import { accountsState } from "@/lib/accounts/server";
 
-export const metadata = { title: "Finish signing up | YapTok" };
+export const metadata = { title: "Finish signing up | Yapit" };
 
 async function WelcomeGate({ searchParams }: { searchParams: PageProps<"/welcome">["searchParams"] }) {
   const next = safeNext((await searchParams).next);
