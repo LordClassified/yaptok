@@ -27,7 +27,7 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000 \
     GIT_SHA=$GIT_SHA
-LABEL org.opencontainers.image.source="https://github.com/myfilehero/yaptok" \
+LABEL org.opencontainers.image.source="https://github.com/LordClassified/yaptok" \
       org.opencontainers.image.revision=$GIT_SHA
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/.next/standalone ./
