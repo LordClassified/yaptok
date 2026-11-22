@@ -1,5 +1,5 @@
 /**
- * The YapTok mark, in one place so the app shell, the favicon and the sign in
+ * The Yapit mark, in one place so the app shell, the favicon and the sign in
  * card all draw the same thing.
  *
  * The mark is an orange eighth note, drawn three times: a light copy nudged
@@ -47,7 +47,7 @@ export const BRAND = {
   ink: "#0f0d0c",
 } as const;
 
-export const SITE_NAME = "YapTok";
+export const SITE_NAME = "Yapit";
 
 /** The three copies of the note as SVG markup, back to front. */
 function markLayers(color: string): string {
@@ -68,13 +68,13 @@ export function markSvg(size = 24, color: string = BRAND.orange): string {
   );
 }
 
-/** The mark and the two tone wordmark ("Yap" in orange, "Tok" in near black). */
+/** The mark and the two tone Yapit wordmark. */
 export function logoSvg(): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="120" viewBox="0 0 140 30">` +
     `<g transform="translate(1 2) scale(1.08)">${markLayers(BRAND.orange)}</g>` +
     `<text x="30" y="21" font-family="Roboto, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="-0.6">` +
-    `<tspan fill="${BRAND.orangeDeep}">Yap</tspan><tspan fill="#1c1410">Tok</tspan></text>` +
+    `<tspan fill="${BRAND.orangeDeep}">Yap</tspan><tspan fill="#1c1410">it</tspan></text>` +
     `</svg>`
   );
 }
