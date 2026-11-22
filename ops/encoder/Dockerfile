@@ -24,7 +24,7 @@ ENV NODE_ENV=production \
     WORK_DIR=/work \
     STATE_DIR=/state \
     GIT_SHA=$GIT_SHA
-LABEL org.opencontainers.image.source="https://github.com/myfilehero/yaptok" \
+LABEL org.opencontainers.image.source="https://github.com/LordClassified/yaptok" \
       org.opencontainers.image.description="YapTok encoder worker" \
       org.opencontainers.image.revision=$GIT_SHA
 
