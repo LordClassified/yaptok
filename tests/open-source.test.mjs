@@ -116,10 +116,10 @@ test("no em dashes anywhere, and nobody else's product names", () => {
 
 test("the brand is ours: one mark, drawn in lib/brand.ts", async () => {
   const brand = await import("../lib/brand.ts");
-  assert.equal(brand.SITE_NAME, "YapTok");
+  assert.equal(brand.SITE_NAME, "Yapit");
   assert.match(brand.markSvg(), /^<svg [^>]*viewBox="0 0 24 24"/);
   assert.ok(brand.markSvg().includes(brand.MARK_HEAD) && brand.markSvg().includes(brand.MARK_STEM));
-  assert.match(brand.logoSvg(), /Yap<\/tspan><tspan[^>]*>Tok/);
+  assert.match(brand.logoSvg(), /Yap<\/tspan><tspan[^>]*>it/);
   const css = readFileSync(join(root, "app/globals.css"), "utf8");
   assert.ok(css.includes(brand.BRAND.orange), "globals.css uses the brand orange");
   assert.ok(css.includes(brand.BRAND.orangeDeep), "and the darker orange that buttons use");
