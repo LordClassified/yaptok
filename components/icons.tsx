@@ -3,7 +3,7 @@ import { BRAND, MARK_HEAD, MARK_LAYERS, MARK_STEM, MARK_VIEWBOX } from "@/lib/br
 
 type IconProps = { className?: string };
 
-/** A 24 px line icon: 2 px rounded strokes in the current text color. All drawn for YapTok. */
+/** A 24 px line icon: 2 px rounded strokes in the current text color. All drawn for Yapit. */
 function line(children: ReactNode) {
   return function Icon({ className }: IconProps) {
     return (
@@ -34,7 +34,7 @@ function solid(children: ReactNode) {
   };
 }
 
-/** The YapTok mark: the orange eighth note with a lit edge (lib/brand.ts). */
+/** The Yapit mark: the orange eighth note with a lit edge (lib/brand.ts). */
 export function LogoMark({ className }: IconProps) {
   return (
     <svg viewBox={MARK_VIEWBOX} className={className} aria-hidden>
